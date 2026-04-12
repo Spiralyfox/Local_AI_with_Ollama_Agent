@@ -1,6 +1,6 @@
 ollama:
   base_url: "http://localhost:11434"
-  timeout: 120
+  timeout: 300
 
 models:
   planner:  "qwen2.5-coder:7b"
@@ -8,15 +8,15 @@ models:
   reviewer: "qwen2.5-coder:7b"
 
 agents:
-  max_retries: 3
+  max_retries: 5
   temperature: 0.2
-  max_tokens: 4096
+  max_tokens: 8192
 
 sandbox:
   workspace: "~/ai-workspace"
-  command_timeout: 30
-  max_file_size_kb: 512
+  command_timeout: 60
+  max_file_size_kb: 2048
 
 web:
   host: "127.0.0.1"
-  port: 8081
+  port: 8080

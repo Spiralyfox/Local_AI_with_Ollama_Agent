@@ -7,30 +7,23 @@ Assistant IA local multi-agent, 100 % offline, tournant sur Ollama.
 ## Installation rapide
 
 ```bash
-# 1. Extraire et entrer dans le dossier
 unzip local-ai-system.zip
 cd local-ai-system
-
-# 2. Lancer l'installation automatique
-chmod +x scripts/install.sh
+chmod +x scripts/install.sh start.sh
 ./scripts/install.sh
 ```
 
-L'installateur vérifie Python 3.10+, installe Ollama si absent, télécharge `qwen2.5-coder:7b` (~4 Go), crée le virtualenv et installe les dépendances.
-
-### Installation manuelle (si tu préfères)
+### Installation manuelle
 
 ```bash
 cd local-ai-system
-
-# Créer le virtualenv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# Installer Ollama (si pas déjà fait)
+# Ollama (si pas déjà installé)
 curl -fsSL https://ollama.com/install.sh | sh
-ollama serve &          # dans un terminal séparé
+ollama serve &
 ollama pull qwen2.5-coder:7b
 ```
 
@@ -38,148 +31,113 @@ ollama pull qwen2.5-coder:7b
 
 ## Lancement
 
-### Méthode simple : start.sh
-
 ```bash
-./start.sh              # → http://127.0.0.1:8080
-./start.sh 9090         # → http://127.0.0.1:9090
-```
+./start.sh              # port 8080
+./start.sh 9090         # port 9090
 
-### Méthode manuelle
-
-```bash
+# Ou manuellement :
 source .venv/bin/activate
-
-python3 main.py                          # port 8080 (défaut)
-python3 main.py --port 9090             # port 9090
-python3 main.py --port 9090 --host 0.0.0.0   # accessible depuis le réseau local
-```
-
-### Options disponibles
-
-| Option       | Défaut        | Description |
-|-------------|---------------|-------------|
-| `--port`    | `8080`        | Port d'écoute du serveur web |
-| `--host`    | `127.0.0.1`   | Adresse d'écoute (`0.0.0.0` pour réseau local) |
-| `--reload`  | off           | Hot-reload en développement |
-
-### Service systemd (démarrage auto)
-
-```bash
-systemctl --user start local-ai
-systemctl --user status local-ai
-systemctl --user stop local-ai
-journalctl --user -u local-ai -f       # voir les logs
-```
-
-Pour changer le port du service, éditer `~/.config/systemd/user/local-ai.service` et modifier `--port`.
-
----
-
-## Mode CLI (sans interface web)
-
-```bash
-source .venv/bin/activate
-python3 cli.py "Crée un serveur HTTP Python avec endpoint /hello"
-python3 cli.py "Génère un script qui liste les fichiers .py" -v   # mode verbose
+python3 main.py --port 8080
+python3 main.py --port 9090 --host 0.0.0.0   # réseau local
 ```
 
 ---
 
-## Structure du projet
+## Guide des modèles
+
+### Modèles Code (pour l'agent Codeur)
+
+| Modèle | Params | Taille | VRAM | Vitesse | Qualité |
+|--------|--------|--------|------|---------|---------|
+| `qwen2.5-coder:1.5b` | 1.5B | 1.0 GB | 2 GB | ⚡⚡⚡ | ★★☆☆☆ |
+| `qwen2.5-coder:3b` | 3B | 1.9 GB | 4 GB | ⚡⚡⚡ | ★★★☆☆ |
+| **`qwen2.5-coder:7b`** | **7B** | **4.7 GB** | **6 GB** | **⚡⚡** | **★★★★☆** |
+| `qwen2.5-coder:14b` | 14B | 9.0 GB | 12 GB | ⚡ | ★★★★☆ |
+| `qwen2.5-coder:32b` | 32B | 20 GB | 24 GB | 🐢 | ★★★★★ |
+| `starcoder2:3b` | 3B | 1.7 GB | 4 GB | ⚡⚡⚡ | ★★★☆☆ |
+| `starcoder2:7b` | 7B | 4.0 GB | 6 GB | ⚡⚡ | ★★★☆☆ |
+| `starcoder2:15b` | 15B | 9.0 GB | 12 GB | ⚡ | ★★★★☆ |
+| `codellama:7b` | 7B | 3.8 GB | 6 GB | ⚡⚡ | ★★★☆☆ |
+| `codellama:13b` | 13B | 7.4 GB | 10 GB | ⚡ | ★★★★☆ |
+| `codellama:34b` | 34B | 19 GB | 24 GB | 🐢 | ★★★★☆ |
+| `yi-coder:9b` | 9B | 5.0 GB | 8 GB | ⚡⚡ | ★★★★☆ |
+| `deepseek-coder-v2:16b` | 16B MoE | 8.9 GB | 12 GB | ⚡ | ★★★★☆ |
+
+### Modèles Raisonnement (pour l'agent Planificateur)
+
+| Modèle | Params | Taille | VRAM | Vitesse | Qualité |
+|--------|--------|--------|------|---------|---------|
+| `deepseek-r1:1.5b` | 1.5B | 1.1 GB | 2 GB | ⚡⚡⚡ | ★★☆☆☆ |
+| **`deepseek-r1:7b`** | **7B** | **4.7 GB** | **6 GB** | **⚡⚡** | **★★★★☆** |
+| `deepseek-r1:8b` | 8B | 4.9 GB | 6 GB | ⚡⚡ | ★★★★☆ |
+| `deepseek-r1:14b` | 14B | 9.0 GB | 12 GB | ⚡ | ★★★★★ |
+| `deepseek-r1:32b` | 32B | 20 GB | 24 GB | 🐢 | ★★★★★ |
+| `deepseek-r1:70b` | 70B | 43 GB | 48 GB | 🐢🐢 | ★★★★★ |
+
+### Modèles Généraux (pour le Reviewer ou usage mixte)
+
+| Modèle | Params | Taille | VRAM | Vitesse | Qualité |
+|--------|--------|--------|------|---------|---------|
+| `qwen3:4b` | 4B | 2.6 GB | 4 GB | ⚡⚡⚡ | ★★★☆☆ |
+| `qwen3:8b` | 8B | 5.2 GB | 6 GB | ⚡⚡ | ★★★★☆ |
+| `qwen3:14b` | 14B | 9.2 GB | 12 GB | ⚡ | ★★★★☆ |
+| `qwen3:30b` | 30B | 19 GB | 24 GB | 🐢 | ★★★★★ |
+| `qwen3:32b` | 32B | 20 GB | 24 GB | 🐢 | ★★★★★ |
+| `llama3.1:8b` | 8B | 4.7 GB | 6 GB | ⚡⚡ | ★★★★☆ |
+| `llama3.2:3b` | 3B | 2.0 GB | 4 GB | ⚡⚡⚡ | ★★★☆☆ |
+| `gemma2:9b` | 9B | 5.5 GB | 8 GB | ⚡⚡ | ★★★★☆ |
+| `gemma2:27b` | 27B | 16 GB | 20 GB | 🐢 | ★★★★★ |
+| `mistral:7b` | 7B | 4.1 GB | 6 GB | ⚡⚡ | ★★★★☆ |
+| `phi4:14b` | 14B | 9.1 GB | 12 GB | ⚡ | ★★★★☆ |
+
+### Configurations recommandées
+
+| RAM GPU | Planner | Coder | Reviewer |
+|---------|---------|-------|----------|
+| **4 GB** | `deepseek-r1:1.5b` | `qwen2.5-coder:3b` | `qwen3:4b` |
+| **6 GB** | `deepseek-r1:7b` | `qwen2.5-coder:7b` | `qwen2.5-coder:7b` |
+| **8 GB** | `deepseek-r1:7b` | `qwen2.5-coder:7b` | `qwen3:8b` |
+| **12 GB** | `deepseek-r1:14b` | `qwen2.5-coder:14b` | `qwen3:14b` |
+| **24 GB** | `deepseek-r1:32b` | `qwen2.5-coder:32b` | `qwen3:30b` |
+| **CPU only** | `deepseek-r1:1.5b` | `qwen2.5-coder:1.5b` | `qwen3:1.7b` |
+
+---
+
+## Mode CLI
+
+```bash
+source .venv/bin/activate
+python3 cli.py "Crée un serveur HTTP Python avec /hello"
+python3 cli.py "Génère un dashboard HTML avec graphiques" -v
+```
+
+## Structure
 
 ```
 local-ai-system/
-├── start.sh               ← Script de lancement rapide
-├── main.py                ← Point d'entrée (web)
+├── start.sh               ← Lancement rapide
+├── main.py                ← Serveur web
 ├── cli.py                 ← Mode terminal
-├── requirements.txt
-├── config/
-│   └── config.yaml        ← Paramètres modèles, sandbox, web
+├── config/config.yaml     ← Configuration
 ├── core/
-│   ├── orchestrator.py    ← Boucle multi-agent
-│   ├── ollama_client.py   ← Client HTTP async pour Ollama
+│   ├── orchestrator.py    ← Boucle multi-agent (5 tentatives)
+│   ├── ollama_client.py   ← Client Ollama async
 │   ├── sandbox.py         ← Sécurité fichiers/commandes
 │   └── logger.py
 ├── web/
-│   ├── app.py             ← API FastAPI + WebSocket
-│   └── index.html         ← Interface terminal-style
-├── scripts/
-│   └── install.sh         ← Installation one-shot
-└── logs/
-    └── agent.log
-```
-
-## Architecture des agents
-
-```
-Utilisateur (tâche texte)
-        │
-        ▼
-┌─────────────────┐
-│   Orchestrator  │  ← coordonne la boucle (max 3 tentatives)
-└────────┬────────┘
-         │
-    ┌────┴────────────────────────┐
-    │                             │
-    ▼                             │
-┌──────────┐                      │
-│ Planner  │  décompose la tâche  │
-│  Agent   │  en étapes + fichiers│
-└────┬─────┘                      │
-     │ plan JSON                  │
-     ▼                            │
-┌──────────┐                      │
-│  Coder   │  génère le code      │
-│  Agent   │  écrit dans sandbox  │
-└────┬─────┘                      │
-     │ code + sortie              │
-     ▼                            │
-┌──────────┐                      │
-│ Reviewer │  évalue le résultat  │
-│  Agent   │  approuve ou corrige ├──(rejeté)──┘
-└──────────┘
-     │ approuvé
-     ▼
-  ✅ Résultat
-```
-
-## Sécurité sandbox
-
-- Fichiers écrits dans `~/ai-workspace` uniquement
-- Path traversal (`../`) détecté et bloqué
-- Extensions autorisées : `.py .js .html .css .json .yaml .sh ...`
-- Commandes interdites : `sudo`, `rm -rf /`, `curl|sh`, etc.
-- Exécution root impossible
-- Timeout 30s par commande shell
-
-## Modèles recommandés
-
-| Modèle | Usage | RAM |
-|--------|-------|-----|
-| `qwen2.5-coder:7b` | Codage, review | 6 Go |
-| `qwen2.5-coder:14b` | Qualité supérieure | 12 Go |
-| `deepseek-r1:7b` | Planification/raisonnement | 6 Go |
-| `deepseek-r1:14b` | Planification avancée | 12 Go |
-
-Changer de modèle : onglet **Modèles** dans l'interface web, ou éditer `config/config.yaml`.
-
-## Exemples de tâches
-
-```
-Crée un serveur HTTP Python avec un endpoint /hello retournant du JSON
-Génère un fichier HTML avec un formulaire de contact stylisé
-Écris un script Python qui surveille l'espace disque et envoie une alerte
-Crée un module Python de chiffrement AES avec tests unitaires
-Génère un README.md pour un projet de todo-list REST API
+│   ├── app.py             ← API FastAPI + catalogue hardcodé
+│   └── index.html         ← Interface web
+└── scripts/install.sh     ← Installation
 ```
 
 ## Dépannage
 
 | Problème | Solution |
 |----------|----------|
-| `python: command not found` | Utiliser `python3` au lieu de `python` |
-| `.venv not found` | Lancer `./scripts/install.sh` ou créer manuellement le venv |
-| `Ollama hors ligne` | Lancer `ollama serve` dans un terminal séparé |
-| Port déjà utilisé | `./start.sh 9090` pour changer de port |
-| Modèle trop lent | Essayer un modèle plus petit ou vérifier la RAM dispo |
+| `python: not found` | Utiliser `python3` |
+| `.venv not found` | `./scripts/install.sh` ou `python3 -m venv .venv` |
+| Ollama hors ligne | `ollama serve` dans un autre terminal |
+| Port occupé | `./start.sh 9090` |
+| Modèle trop lent | Modèle plus petit ou vérifier VRAM |
+| Erreur JSON du modèle | Augmenter max_tokens dans Config |
+| Projet trop gros | Augmenter tentatives et tokens dans Config |

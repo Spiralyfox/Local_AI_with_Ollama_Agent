@@ -5,544 +5,286 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Local AI System</title>
 <style>
-:root{
-  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--surface3:#21262d;
-  --border:#30363d;--border2:#21262d;
-  --green:#39d353;--blue:#58a6ff;--amber:#f0a500;--red:#f85149;
-  --purple:#bc8cff;--teal:#39c5bb;--muted:#8b949e;--text:#e6edf3;
-  --font:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
-}
+:root{--bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--surface3:#21262d;--border:#30363d;--border2:#21262d;--green:#39d353;--blue:#58a6ff;--amber:#f0a500;--red:#f85149;--purple:#bc8cff;--teal:#39c5bb;--muted:#8b949e;--text:#e6edf3;--font:'JetBrains Mono','Fira Code','Cascadia Code',monospace}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.6;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-
-/* Header */
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;min-height:42px}
-.logo{color:var(--green);font-weight:700;font-size:14px;letter-spacing:.05em;white-space:nowrap}
-.logo span{color:var(--muted);font-weight:400}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{color:var(--green);font-weight:700;font-size:14px;letter-spacing:.05em;white-space:nowrap}.logo span{color:var(--muted);font-weight:400}
 #status-dot{width:8px;height:8px;border-radius:50%;background:var(--red);transition:background .4s;flex-shrink:0}
 #status-dot.ok{background:var(--green);box-shadow:0 0 5px var(--green)}
-.header-models{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;align-items:center}
-.model-chip{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:10px;color:var(--muted);white-space:nowrap}
-.model-chip span{color:var(--blue)}
+.hmodels{display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.hchip{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:10px;color:var(--muted);white-space:nowrap}.hchip span{color:var(--blue)}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;padding:0 8px}
+.tab{padding:7px 18px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--muted);border:none;border-bottom:2px solid transparent;transition:all .2s;background:none;letter-spacing:.03em}.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.panel{display:none;flex:1;overflow:hidden;min-height:0}.panel.active{display:flex}
 
-/* Tabs */
-.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;gap:2px;padding:0 4px}
-.tab{padding:7px 16px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--muted);border:none;border-bottom:2px solid transparent;transition:all .2s;background:none;letter-spacing:.03em}
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-
-/* Panels */
-.panel{display:none;flex:1;overflow:hidden;min-height:0}
-.panel.active{display:flex}
-
-/* ── Agent panel ── */
+/* Agent */
 #agent-panel{flex-direction:row}
-#terminal-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-#output{flex:1;overflow-y:auto;padding:14px 18px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-.line{margin-bottom:2px;word-break:break-word}
-.line.system{color:var(--muted)}.line.task{color:var(--amber);font-weight:600}
-.line.ok{color:var(--green)}.line.err{color:var(--red)}
-.line.info{color:var(--blue)}.line.plan{color:#c9d1d9}
-#input-bar{border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;background:var(--surface);flex-shrink:0;align-items:center}
-#task-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s;min-width:0}
-#task-input:focus{border-color:var(--blue)}
-#task-input::placeholder{color:var(--muted)}
-#send-btn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0}
-#send-btn:hover{background:#2ea043}
-#send-btn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
-#sidebar{width:200px;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
-.sidebar-title{padding:7px 12px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);flex-shrink:0}
+#terminal-pane{flex:1;display:flex;flex-direction:column;min-width:0}
+#output{flex:1;overflow-y:auto;padding:14px 20px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.line{margin-bottom:2px;word-break:break-word}.line.system{color:var(--muted)}.line.task{color:var(--amber);font-weight:600}.line.ok{color:var(--green)}.line.err{color:var(--red)}.line.info{color:var(--blue)}.line.plan{color:#c9d1d9}
+#input-bar{border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px;background:var(--surface);flex-shrink:0;align-items:center}
+#task-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;min-width:0}#task-input:focus{border-color:var(--blue)}#task-input::placeholder{color:var(--muted)}
+.sbtn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0}.sbtn:hover{background:#2ea043}.sbtn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
+#sidebar{width:210px;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;flex-shrink:0}
+.stitle{padding:7px 12px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);flex-shrink:0}
 #file-list{overflow-y:auto;flex:1}
-.file-item{padding:5px 12px;font-size:11px;color:var(--blue);cursor:pointer;border-bottom:1px solid var(--border2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
-.file-item:hover{background:var(--surface2)}
-.empty-state{padding:16px 12px;font-size:11px;color:var(--muted);text-align:center;line-height:1.8}
+.fitem{padding:5px 12px;font-size:11px;color:var(--blue);cursor:pointer;border-bottom:1px solid var(--border2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fitem:hover{background:var(--surface2)}
+.empty{padding:16px 12px;font-size:11px;color:var(--muted);text-align:center;line-height:1.8}
 
-/* ── Modèles panel ── */
-#models-panel{overflow-y:auto;padding:0;flex-direction:column}
-.models-inner{padding:16px 20px;display:flex;flex-direction:column;gap:20px;max-width:900px;width:100%}
-.section-header{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.section-header .count{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 7px;font-size:10px;color:var(--muted)}
+/* Scrollable panels */
+#models-panel,#config-panel{overflow-y:auto;flex-direction:column}
+.pcontent{padding:20px 28px;width:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.sh{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}.sh .cnt{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 7px;font-size:10px;color:var(--muted)}
 
 /* Installed */
-#installed-list{display:flex;flex-direction:column;gap:5px}
-.installed-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;transition:border-color .2s;flex-wrap:wrap}
-.installed-card.is-active{border-color:#1a3a5c}
-.ic-info{flex:1;min-width:150px}
-.ic-name{font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.active-badge{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid var(--blue);color:var(--blue)}
-.ic-meta{font-size:10px;color:var(--muted);margin-top:2px}
-.ic-actions{display:flex;gap:6px;flex-shrink:0}
-.btn-sm{font-family:var(--font);font-size:11px;padding:4px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all .2s}
-.btn-use{background:var(--surface2);border:1px solid var(--blue);color:var(--blue)}
-.btn-use:hover{background:#0d2137}
-.btn-use.current{opacity:.5;cursor:default}
-.btn-del{background:none;border:1px solid #3d2020;color:var(--red)}
-.btn-del:hover{background:#2a1010}
-.btn-del:disabled{opacity:.3;cursor:default}
+.ilist{display:flex;flex-direction:column;gap:5px}
+.icard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.icard.act{border-color:#1a3a5c}
+.iinfo{flex:1;min-width:180px}
+.iname{font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid var(--blue);color:var(--blue)}
+.imeta{font-size:10px;color:var(--muted);margin-top:2px}
+.ibtns{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap}
+.btn-s{font-family:var(--font);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-role{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}.btn-role:hover{border-color:var(--blue);color:var(--blue)}.btn-role.on{border-color:var(--blue);color:var(--blue);background:#0d2137}
+.btn-x{background:none;border:1px solid #3d2020;color:var(--red)}.btn-x:hover{background:#2a1010}.btn-x:disabled{opacity:.3;cursor:default}
 
-/* Catalog */
-.search-row{display:flex;gap:8px;margin-bottom:12px}
-.search-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;transition:border-color .2s;min-width:0}
-.search-input:focus{border-color:var(--blue)}
-.search-input::placeholder{color:var(--muted)}
-.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.fbtn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--font);font-size:10px;padding:3px 10px;cursor:pointer;transition:all .2s}
-.fbtn.active{border-color:var(--blue);color:var(--blue)}
-#catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-.cat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;transition:border-color .2s}
-.cat-card.installed{border-color:#1a3a1a}
-.cat-name{font-size:12px;font-weight:600;color:var(--text);word-break:break-word}
-.cat-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.cat-size{font-size:10px;color:var(--muted)}
-.cat-tag{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid}
-.cat-tag.code{color:var(--blue);border-color:#1a3a5c;background:#0a1f35}
-.cat-tag.reason,.cat-tag.reasoning{color:var(--purple);border-color:#2a1a5c;background:#150a35}
-.cat-tag.general{color:var(--green);border-color:#1a3a1a;background:#0a2010}
-.cat-tag.embed,.cat-tag.embedding{color:var(--amber);border-color:#3a2a0a;background:#201500}
-.cat-tag.vision{color:var(--teal);border-color:#0a3a35;background:#051f1d}
-.cat-tag.instcheck{color:var(--green);border-color:#1a3a1a}
-.cat-desc{font-size:10px;color:var(--muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.cat-actions{display:flex;gap:6px;margin-top:auto;padding-top:4px}
-.btn-install{flex:1;background:#0a1f0a;border:1px solid #2ea043;border-radius:4px;color:var(--green);font-family:var(--font);font-size:11px;padding:5px 8px;cursor:pointer;transition:all .2s;text-align:center}
-.btn-install:hover{background:#162312}
-.btn-install.inst{background:#162312;cursor:default;opacity:.7}
-.btn-install:disabled{opacity:.4;cursor:default}
-.prog-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px;display:none}
-.prog-bar.on{display:block}
-.prog-fill{height:100%;background:var(--blue);width:0%;transition:width .3s;border-radius:2px}
-.catalog-empty{padding:24px;text-align:center;color:var(--muted);font-size:12px;line-height:2;grid-column:1/-1}
-.offline-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px;text-align:center;color:var(--muted);font-size:12px;line-height:1.8;grid-column:1/-1}
-.offline-box .offline-icon{font-size:22px;margin-bottom:8px;display:block;opacity:.6}
-.offline-box strong{color:var(--amber);font-weight:600}
+/* Catalog grid */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;transition:border-color .2s}.ccard.inst{border-color:#1a3a1a}
+.cname{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.crec{font-size:8px;padding:1px 5px;border-radius:3px;background:#162312;border:1px solid var(--green);color:var(--green);text-transform:uppercase;letter-spacing:.05em}
+.cmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.csize{font-size:10px;color:var(--muted)}
+.ctag{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid}
+.ctag.code{color:var(--blue);border-color:#1a3a5c;background:#0a1f35}
+.ctag.reasoning{color:var(--purple);border-color:#2a1a5c;background:#150a35}
+.ctag.general{color:var(--green);border-color:#1a3a1a;background:#0a2010}
+.ctag.embedding{color:var(--amber);border-color:#3a2a0a;background:#201500}
+.ctag.vision{color:var(--teal);border-color:#0a3a35;background:#051f1d}
+.cdesc{font-size:10px;color:var(--muted);line-height:1.5}
+.cspeed{font-size:9px;color:var(--muted);opacity:.7}
+.cacts{display:flex;gap:6px;margin-top:auto;padding-top:4px}
+.btn-inst{flex:1;background:#0a1f0a;border:1px solid #2ea043;border-radius:4px;color:var(--green);font-family:var(--font);font-size:11px;padding:5px 8px;cursor:pointer;text-align:center}.btn-inst:hover{background:#162312}.btn-inst.done{opacity:.6;cursor:default}.btn-inst:disabled{opacity:.4;cursor:default}
+.pbar{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px;display:none}.pbar.on{display:block}
+.pfill{height:100%;background:var(--blue);width:0%;transition:width .3s;border-radius:2px}
+
+/* Filter */
+.frow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.fbtn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--font);font-size:10px;padding:3px 10px;cursor:pointer;transition:all .2s}.fbtn.active{border-color:var(--blue);color:var(--blue)}
 
 /* Custom install */
-.custom-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.custom-row input{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;transition:border-color .2s}
-.custom-row input:focus{border-color:var(--blue)}
-.custom-row input::placeholder{color:var(--muted)}
-.btn-pull{background:#238636;border:none;border-radius:4px;color:#fff;font-family:var(--font);font-size:11px;padding:6px 14px;cursor:pointer;white-space:nowrap;flex-shrink:0}
-.btn-pull:hover{background:#2ea043}
+.crow{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.crow input{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none}.crow input:focus{border-color:var(--blue)}.crow input::placeholder{color:var(--muted)}
+.btn-pull{background:#238636;border:none;border-radius:4px;color:#fff;font-family:var(--font);font-size:11px;padding:6px 14px;cursor:pointer;white-space:nowrap;flex-shrink:0}.btn-pull:hover{background:#2ea043}
 
-/* ── Config panel ── */
-#config-panel{overflow-y:auto;padding:0;flex-direction:column}
-.config-inner{padding:16px 20px;display:flex;flex-direction:column;gap:20px;max-width:700px;width:100%}
-.config-group{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.config-group-title{padding:10px 16px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--surface2);border-bottom:1px solid var(--border)}
-.config-row{padding:12px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:16px;min-height:52px}
-.config-row:last-child{border-bottom:none}
-.config-label{flex:1;min-width:0}
-.config-key{font-size:12px;color:var(--text);margin-bottom:2px}
-.config-desc{font-size:11px;color:var(--muted);line-height:1.5}
-.config-control{flex-shrink:0;display:flex;align-items:center;gap:6px}
-.cfg-input{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:100px;text-align:right;transition:border-color .2s}
-.cfg-input:focus{border-color:var(--blue)}
-.cfg-unit{font-size:10px;color:var(--muted);white-space:nowrap}
-.cfg-select{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:180px;max-width:100%;cursor:pointer}
-.cfg-range-wrap{display:flex;align-items:center;gap:8px}
-.cfg-range{width:120px;accent-color:var(--blue)}
-.cfg-range-val{font-size:11px;color:var(--blue);min-width:28px;text-align:right}
-.config-save-row{display:flex;justify-content:flex-end;gap:8px;padding-top:4px;align-items:center;flex-wrap:wrap}
-.btn-save{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:8px 20px;cursor:pointer}
-.btn-save:hover{background:#2ea043}
-.btn-reset{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:8px 16px;cursor:pointer}
-.btn-reset:hover{border-color:var(--red);color:var(--red)}
-.save-feedback{font-size:11px;color:var(--green);opacity:0;transition:opacity .3s}
-.save-feedback.show{opacity:1}
+/* Config */
+.cgroup{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.cgtitle{padding:10px 16px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--surface2);border-bottom:1px solid var(--border)}
+.crow2{padding:12px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:16px;min-height:50px}.crow2:last-child{border-bottom:none}
+.clabel{flex:1;min-width:0}.ckey{font-size:12px;color:var(--text);margin-bottom:1px}.cdsc{font-size:11px;color:var(--muted)}
+.cctrl{flex-shrink:0;display:flex;align-items:center;gap:6px}
+.cinput{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:100px;text-align:right}.cinput:focus{border-color:var(--blue)}
+.cunit{font-size:10px;color:var(--muted);white-space:nowrap}
+.csel{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:220px;max-width:100%;cursor:pointer}
+.rwrap{display:flex;align-items:center;gap:8px}.rng{width:120px;accent-color:var(--blue)}.rval{font-size:11px;color:var(--blue);min-width:28px;text-align:right}
+.saverow{display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap}
+.btn-sv{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:8px 20px;cursor:pointer}.btn-sv:hover{background:#2ea043}
+.btn-rst{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:8px 16px;cursor:pointer}.btn-rst:hover{border-color:var(--red);color:var(--red)}
+.svfb{font-size:11px;color:var(--green);opacity:0;transition:opacity .3s}.svfb.show{opacity:1}
 
-/* File modal */
-#file-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}
-#file-modal.open{display:flex}
+/* Modal */
+#fmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}#fmodal.open{display:flex}
 #fmi{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:82vw;max-height:82vh;display:flex;flex-direction:column;overflow:hidden}
 #fmh{padding:10px 16px;display:flex;align-items:center;border-bottom:1px solid var(--border);gap:10px}
 #fmt{flex:1;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #fmc{flex:1;overflow:auto;padding:16px;white-space:pre;font-size:12px;color:#c9d1d9}
 
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
-
-/* Responsive */
-@media(max-width:768px){
-  #sidebar{display:none}
-  .header-models{display:none}
-  .config-row{flex-direction:column;align-items:flex-start;gap:8px}
-  .config-control{align-self:flex-end}
-  .cfg-select{width:100%}
-  #catalog-grid{grid-template-columns:1fr}
-}
+@keyframes spin{to{transform:rotate(360deg)}}.spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+@media(max-width:800px){#sidebar{display:none}.hmodels{display:none}.crow2{flex-direction:column;align-items:flex-start;gap:8px}.cctrl{align-self:flex-end}.cgrid{grid-template-columns:1fr}.csel{width:100%}}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">⬡ Local AI <span>/ agent system</span></div>
   <div id="status-dot"></div>
-  <div class="header-models" id="header-models">
-    <div class="model-chip">chargement…</div>
-  </div>
+  <div class="hmodels" id="hmodels"><div class="hchip">chargement…</div></div>
 </header>
-
 <div class="tabs">
-  <button class="tab active"  onclick="switchTab('agent')">⬡ Agent</button>
-  <button class="tab"         onclick="switchTab('models')">⬢ Modèles</button>
-  <button class="tab"         onclick="switchTab('config')">⚙ Configuration</button>
+  <button class="tab active" onclick="switchTab('agent')">⬡ Agent</button>
+  <button class="tab" onclick="switchTab('models')">⬢ Modèles</button>
+  <button class="tab" onclick="switchTab('config')">⚙ Config</button>
 </div>
 
-<!-- Agent -->
 <div id="agent-panel" class="panel active">
   <div id="terminal-pane">
-    <div id="output">
-      <div class="line system">Système local multi-agent — workspace: ~/ai-workspace</div>
-      <div class="line system">Connexion à Ollama en cours…</div>
-    </div>
-    <div id="input-bar">
-      <input id="task-input" type="text" placeholder="Décris une tâche… ex: Crée un serveur HTTP Python avec /hello" autocomplete="off">
-      <button id="send-btn">▶ Lancer</button>
-    </div>
+    <div id="output"><div class="line system">Système multi-agent — workspace: ~/ai-workspace</div><div class="line system">Connexion à Ollama…</div></div>
+    <div id="input-bar"><input id="task-input" type="text" placeholder="Décris une tâche… ex: Crée un serveur HTTP Python avec /hello" autocomplete="off"><button id="send-btn" class="sbtn">▶ Lancer</button></div>
   </div>
-  <div id="sidebar">
-    <div class="sidebar-title">Workspace</div>
-    <div id="file-list"></div>
-  </div>
+  <div id="sidebar"><div class="stitle">Workspace</div><div id="file-list"></div></div>
 </div>
 
-<!-- Modèles -->
 <div id="models-panel" class="panel">
-  <div class="models-inner">
+  <div class="pcontent">
     <div>
-      <div class="section-header">Modèles installés <span class="count" id="installed-count">0</span></div>
-      <div id="installed-list"><div class="empty-state">Chargement…</div></div>
+      <div class="sh">Modèles installés <span class="cnt" id="inst-cnt">0</span></div>
+      <div id="ilist" class="ilist"><div class="empty">Chargement…</div></div>
     </div>
     <div>
-      <div class="section-header">Catalogue Ollama</div>
-      <div class="search-row">
-        <input class="search-input" id="catalog-search" placeholder="Rechercher un modèle… ex: llama, mistral, phi" oninput="searchCatalog()">
+      <div class="sh">Catalogue — modèles recommandés</div>
+      <div class="frow" id="frow">
+        <button class="fbtn active" onclick="filt('',this)">Tous</button>
+        <button class="fbtn" onclick="filt('code',this)">Code</button>
+        <button class="fbtn" onclick="filt('reasoning',this)">Raisonnement</button>
+        <button class="fbtn" onclick="filt('general',this)">Général</button>
+        <button class="fbtn" onclick="filt('vision',this)">Vision</button>
+        <button class="fbtn" onclick="filt('embedding',this)">Embedding</button>
       </div>
-      <div class="filter-row" id="filter-row">
-        <button class="fbtn active" onclick="filterTag('',this)">Tous</button>
-        <button class="fbtn" onclick="filterTag('code',this)">Code</button>
-        <button class="fbtn" onclick="filterTag('reasoning',this)">Raisonnement</button>
-        <button class="fbtn" onclick="filterTag('vision',this)">Vision</button>
-        <button class="fbtn" onclick="filterTag('embedding',this)">Embedding</button>
-      </div>
-      <div id="catalog-grid"><div class="catalog-empty">Chargement du catalogue…</div></div>
+      <div id="cgrid" class="cgrid"><div class="empty">Chargement…</div></div>
     </div>
     <div>
-      <div class="section-header">Installer par nom exact</div>
-      <div class="custom-row">
-        <input id="custom-input" type="text" placeholder="ex: qwen2.5-coder:32b  ou  deepseek-r1:14b">
-        <button class="btn-pull" onclick="pullCustom()">⬇ Installer</button>
-      </div>
+      <div class="sh">Installer par nom exact</div>
+      <div class="crow"><input id="custom-in" type="text" placeholder="ex: qwen2.5-coder:32b  ou  deepseek-r1:14b"><button class="btn-pull" onclick="pullCustom()">⬇ Installer</button></div>
     </div>
   </div>
 </div>
 
-<!-- Configuration -->
 <div id="config-panel" class="panel">
-  <div class="config-inner">
-    <div class="config-group">
-      <div class="config-group-title">Agents</div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Tentatives max</div><div class="config-desc">Nombre de fois que l'agent réessaie si le reviewer rejette le code.</div></div>
-        <div class="config-control"><input class="cfg-input" id="cfg-max-retries" type="number" min="1" max="10" value="3"></div>
-      </div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Température</div><div class="config-desc">Créativité du modèle. 0 = déterministe, 1 = créatif.</div></div>
-        <div class="config-control"><div class="cfg-range-wrap"><input class="cfg-range" id="cfg-temp" type="range" min="0" max="1" step="0.05" value="0.2" oninput="document.getElementById('cfg-temp-val').textContent=this.value"><span class="cfg-range-val" id="cfg-temp-val">0.2</span></div></div>
-      </div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Tokens max</div><div class="config-desc">Limite de tokens par réponse (4096–16384 pour du code long).</div></div>
-        <div class="config-control"><input class="cfg-input" id="cfg-max-tokens" type="number" min="512" max="32768" step="512" value="4096"></div>
-      </div>
+  <div class="pcontent">
+    <div class="cgroup">
+      <div class="cgtitle">Modèles par rôle</div>
+      <div class="crow2"><div class="clabel"><div class="ckey">🧠 Agent Planificateur</div><div class="cdsc">Décompose la tâche. Idéal : modèle raisonnement (deepseek-r1).</div></div><div class="cctrl"><select class="csel" id="cfg-planner"></select></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">💻 Agent Codeur</div><div class="cdsc">Génère le code. Idéal : modèle code (qwen2.5-coder).</div></div><div class="cctrl"><select class="csel" id="cfg-coder"></select></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">🔍 Agent Reviewer</div><div class="cdsc">Évalue le code. Idéal : modèle général ou raisonnement.</div></div><div class="cctrl"><select class="csel" id="cfg-reviewer"></select></div></div>
     </div>
-    <div class="config-group">
-      <div class="config-group-title">Modèles par rôle</div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Agent Planificateur</div><div class="config-desc">Décompose la tâche en étapes.</div></div>
-        <div class="config-control"><select class="cfg-select" id="cfg-planner"></select></div>
-      </div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Agent Codeur</div><div class="config-desc">Génère le code source.</div></div>
-        <div class="config-control"><select class="cfg-select" id="cfg-coder"></select></div>
-      </div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Agent Reviewer</div><div class="config-desc">Évalue et critique le code.</div></div>
-        <div class="config-control"><select class="cfg-select" id="cfg-reviewer"></select></div>
-      </div>
+    <div class="cgroup">
+      <div class="cgtitle">Agents</div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Tentatives max</div><div class="cdsc">Nombre de boucles code→review avant abandon.</div></div><div class="cctrl"><input class="cinput" id="cfg-retries" type="number" min="1" max="15" value="5"></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Température</div><div class="cdsc">0 = déterministe, 1 = créatif. Code : 0.1–0.3.</div></div><div class="cctrl"><div class="rwrap"><input class="rng" id="cfg-temp" type="range" min="0" max="1" step="0.05" value="0.2" oninput="$('cfg-tv').textContent=this.value"><span class="rval" id="cfg-tv">0.2</span></div></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Tokens max</div><div class="cdsc">Limite par réponse. 8192+ pour gros projets.</div></div><div class="cctrl"><input class="cinput" id="cfg-tokens" type="number" min="1024" max="65536" step="1024" value="8192"></div></div>
     </div>
-    <div class="config-group">
-      <div class="config-group-title">Sandbox & Sécurité</div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Timeout commande</div><div class="config-desc">Secondes max avant qu'une commande soit tuée.</div></div>
-        <div class="config-control"><input class="cfg-input" id="cfg-cmd-timeout" type="number" min="5" max="300" value="30"><span class="cfg-unit">sec</span></div>
-      </div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Taille max fichier</div><div class="config-desc">Taille maximale d'un fichier dans le workspace.</div></div>
-        <div class="config-control"><input class="cfg-input" id="cfg-max-file-kb" type="number" min="64" max="10240" step="64" value="512"><span class="cfg-unit">KB</span></div>
-      </div>
+    <div class="cgroup">
+      <div class="cgtitle">Sandbox & Ollama</div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Timeout commande</div><div class="cdsc">Secondes max par commande shell.</div></div><div class="cctrl"><input class="cinput" id="cfg-cmdto" type="number" min="5" max="600" value="60"><span class="cunit">sec</span></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Taille max fichier</div><div class="cdsc">Limite par fichier dans le workspace.</div></div><div class="cctrl"><input class="cinput" id="cfg-maxf" type="number" min="64" max="10240" step="64" value="2048"><span class="cunit">KB</span></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Timeout IA</div><div class="cdsc">Secondes avant abandon requête modèle. Gros modèles = 300+.</div></div><div class="cctrl"><input class="cinput" id="cfg-ollto" type="number" min="30" max="900" value="300"><span class="cunit">sec</span></div></div>
     </div>
-    <div class="config-group">
-      <div class="config-group-title">Ollama</div>
-      <div class="config-row">
-        <div class="config-label"><div class="config-key">Timeout requête IA</div><div class="config-desc">Secondes avant abandon. Augmenter pour les gros modèles.</div></div>
-        <div class="config-control"><input class="cfg-input" id="cfg-ollama-timeout" type="number" min="30" max="600" value="120"><span class="cfg-unit">sec</span></div>
-      </div>
-    </div>
-    <div class="config-save-row">
-      <span class="save-feedback" id="save-feedback">✔ Sauvegardé</span>
-      <button class="btn-reset" onclick="loadConfig()">↺ Réinitialiser</button>
-      <button class="btn-save" onclick="saveConfig()">💾 Sauvegarder</button>
-    </div>
+    <div class="saverow"><span class="svfb" id="svfb">✔ Sauvegardé</span><button class="btn-rst" onclick="loadCfg()">↺ Reset</button><button class="btn-sv" onclick="saveCfg()">💾 Sauvegarder</button></div>
   </div>
 </div>
 
-<!-- File modal -->
-<div id="file-modal">
-  <div id="fmi">
-    <div id="fmh">
-      <span id="fmt">—</span>
-      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button>
-    </div>
-    <div id="fmc"></div>
-  </div>
-</div>
+<div id="fmodal"><div id="fmi"><div id="fmh"><span id="fmt">—</span><button onclick="closeFM()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button></div><div id="fmc"></div></div></div>
 
 <script>
-const output=document.getElementById('output'),taskInput=document.getElementById('task-input'),sendBtn=document.getElementById('send-btn'),statusDot=document.getElementById('status-dot'),fileList=document.getElementById('file-list');
-let ws,installedModels=[],catalogRaw=[],currentTag='',searchDebounce=null;
+const $=id=>document.getElementById(id);
+const output=$('output'),taskIn=$('task-input'),sendBtn=$('send-btn'),sDot=$('status-dot'),fList=$('file-list');
+let ws,installed=[],catalog=[],curTag='';
 
-function switchTab(name){
-  const names=['agent','models','config'];
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById(name+'-panel').classList.add('active');
-  if(name==='models'){loadInstalled();searchCatalog();}
-  if(name==='config'){loadConfig();}
-}
-
-function log(text,cls='system'){const d=document.createElement('div');d.className='line '+cls;d.textContent=text;output.appendChild(d);output.scrollTop=output.scrollHeight;}
+function switchTab(n){['agent','models','config'].forEach((t,i)=>{document.querySelectorAll('.tab')[i].classList.toggle('active',t===n);$(t+'-panel').classList.toggle('active',t===n)});if(n==='models'){loadInst();loadCat();}if(n==='config')loadCfg();}
+function log(t,c='system'){const d=document.createElement('div');d.className='line '+c;d.textContent=t;output.appendChild(d);output.scrollTop=1e9;}
 
 async function fetchStatus(){
-  try{
-    const r=await fetch('/api/status'),d=await r.json();
-    statusDot.classList.toggle('ok',d.ollama);
-    installedModels=d.models||[];
-    renderHeaderModels(d.active_model||{});
-    renderFiles(d.files||[]);
-    log(d.ollama?'✔ Ollama en ligne — prêt.':'⚠ Ollama hors ligne — lancez : ollama serve',d.ollama?'ok':'err');
-    if(d.ollama&&!installedModels.length)log('⚠ Aucun modèle installé — allez dans l\'onglet Modèles.','err');
-  }catch(e){log('Impossible de joindre le backend.','err');}
+  try{const r=await fetch('/api/status'),d=await r.json();sDot.classList.toggle('ok',d.ollama);installed=d.models||[];renderHdr(d.active_model||{});renderFiles(d.files||[]);log(d.ollama?'✔ Ollama en ligne — prêt.':'⚠ Ollama hors ligne — lancez : ollama serve',d.ollama?'ok':'err');if(d.ollama&&!installed.length)log('⚠ Aucun modèle installé → onglet Modèles','err');}catch(e){log('Backend injoignable.','err');}
 }
+function renderHdr(am){const el=$('hmodels');el.innerHTML='';['Planner','Coder','Reviewer'].forEach(r=>{const c=document.createElement('div');c.className='hchip';c.innerHTML=`${r}: <span>${am[r.toLowerCase()]||'—'}</span>`;el.appendChild(c);});}
+function renderFiles(f){fList.innerHTML='';if(!f.length){fList.innerHTML='<div class="empty">Aucun fichier</div>';return;}f.forEach(n=>{const d=document.createElement('div');d.className='fitem';d.textContent=n;d.onclick=()=>openF(n);fList.appendChild(d);});}
+async function refreshF(){try{renderFiles((await(await fetch('/api/files')).json()).files||[]);}catch{}}
 
-function renderHeaderModels(am){
-  const el=document.getElementById('header-models');el.innerHTML='';
-  [{role:'Planner',key:'planner'},{role:'Coder',key:'coder'},{role:'Reviewer',key:'reviewer'}].forEach(({role,key})=>{
-    const c=document.createElement('div');c.className='model-chip';
-    c.innerHTML=`${role}: <span>${am[key]||'—'}</span>`;el.appendChild(c);
-  });
+function connectWS(){const p=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${p}://${location.host}/ws`);ws.onmessage=e=>onMsg(JSON.parse(e.data));ws.onclose=()=>setTimeout(connectWS,2000);}
+
+function onMsg(m){
+  if(m.type==='started'){log(`\n▶ ${m.task}`,'task');sendBtn.disabled=true;sendBtn.innerHTML='<span class="spinner"></span> En cours…';}
+  if(m.type==='result'){const d=m.data;log('Plan :','info');(d.plan?.steps||[]).forEach(s=>log('  · '+s,'plan'));d.steps?.forEach(s=>{log(`Tentative ${s.attempt} :`,'info');(s.code?.files||[]).forEach(f=>log('  ✎ '+f.path,'ok'));if(s.code?.output)s.code.output.split('\n').filter(l=>l.trim()).forEach(l=>log('  '+l,l.startsWith('ERR')?'err':'system'));if(s.review)log('  Review: '+(s.review.approved?'✔ approuvé':'✘ '+s.review.reason),s.review.approved?'ok':'err');});log(d.success?'\n✅ Terminé.':'\n❌ Échec.',d.success?'ok':'err');sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';refreshF();}
+  if(m.type==='error'){log(`Erreur: ${m.message}`,'err');sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';}
+  if(m.type==='pull_start')log(`\n⬇ ${m.model}…`,'info');
+  if(m.type==='pull_progress'){const p=m.data?.completed&&m.data?.total?Math.round(m.data.completed/m.data.total*100):null;if(p!==null)updPull(m.model,p,'dl');}
+  if(m.type==='pull_done'){log(`✔ ${m.model} installé !`,'ok');updPull(m.model,100,'ok');loadInst();}
+  if(m.type==='pull_error')log(`✘ ${m.model}: ${m.message}`,'err');
+  if(m.type==='model_deleted'){log('✕ Supprimé.','err');loadInst();}
 }
+function updPull(model,pct,st){const s='p'+model.replace(/[^a-z0-9]/gi,'_');const bar=$('bar_'+s),fill=$('fill_'+s),btn=$('btn_'+s);if(bar)bar.classList.add('on');if(fill)fill.style.width=pct+'%';if(btn){if(st==='ok'){btn.textContent='✔ Installé';btn.classList.add('done');btn.disabled=true;}else{btn.textContent=pct+'%…';btn.disabled=true;}}}
 
-function renderFiles(files){
-  fileList.innerHTML='';
-  if(!files.length){fileList.innerHTML='<div class="empty-state">Aucun fichier<br>dans le workspace</div>';return;}
-  files.forEach(f=>{const d=document.createElement('div');d.className='file-item';d.textContent=f;d.onclick=()=>openFile(f);fileList.appendChild(d);});
-}
+async function sendTask(){const t=taskIn.value.trim();if(!t||sendBtn.disabled)return;taskIn.value='';if(!installed.length){log('⚠ Aucun modèle installé.','err');return;}if(ws?.readyState===1)ws.send(JSON.stringify({type:'task',task:t}));else await fetch('/api/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:t})});}
+sendBtn.onclick=sendTask;taskIn.onkeydown=e=>{if(e.key==='Enter')sendTask();};
 
-async function refreshFiles(){try{const r=await fetch('/api/files');renderFiles((await r.json()).files||[]);}catch{}}
-
-function connectWS(){
-  const proto=location.protocol==='https:'?'wss':'ws';
-  ws=new WebSocket(`${proto}://${location.host}/ws`);
-  ws.onmessage=e=>handleMessage(JSON.parse(e.data));
-  ws.onclose=()=>setTimeout(connectWS,2000);
-}
-
-function handleMessage(msg){
-  if(msg.type==='started'){log(`\n▶ Tâche : ${msg.task}`,'task');sendBtn.disabled=true;sendBtn.innerHTML='<span class="spinner"></span> En cours…';}
-  if(msg.type==='result'){
-    const d=msg.data;
-    log('Plan :','info');(d.plan?.steps||[]).forEach(s=>log('  · '+s,'plan'));
-    d.steps?.forEach(s=>{
-      log(`Tentative ${s.attempt} :`,'info');
-      (s.code?.files||[]).forEach(f=>log('  ✎ '+f.path,'ok'));
-      if(s.code?.output)s.code.output.split('\n').filter(l=>l.trim()).forEach(l=>log('  '+l,l.startsWith('ERR')?'err':'system'));
-      if(s.review)log('  Review : '+(s.review.approved?'✔ approuvé':'✘ '+s.review.reason),s.review.approved?'ok':'err');
-    });
-    log(d.success?'\n✅ Terminé.':'\n❌ Échec après toutes les tentatives.',d.success?'ok':'err');
-    sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';refreshFiles();
-  }
-  if(msg.type==='error'){log(`Erreur : ${msg.message}`,'err');sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';}
-  if(msg.type==='pull_start'){log(`\n⬇ Installation : ${msg.model}…`,'info');updatePull(msg.model,0,'dl');}
-  if(msg.type==='pull_progress'){
-    const pct=msg.data?.completed&&msg.data?.total?Math.round(msg.data.completed/msg.data.total*100):null;
-    if(pct!==null)updatePull(msg.model,pct,'dl');
-  }
-  if(msg.type==='pull_done'){log(`✔ ${msg.model} installé !`,'ok');updatePull(msg.model,100,'done');loadInstalled();}
-  if(msg.type==='pull_error'){log(`✘ Erreur installation ${msg.model} : ${msg.message}`,'err');}
-  if(msg.type==='model_deleted'){log('✕ Modèle supprimé.','err');loadInstalled();}
-}
-
-function updatePull(model,pct,state){
-  const sid='p'+model.replace(/[^a-z0-9]/gi,'_');
-  const bar=document.getElementById('bar_'+sid),fill=document.getElementById('fill_'+sid),btn=document.getElementById('btn_'+sid);
-  if(bar)bar.classList.add('on');
-  if(fill)fill.style.width=pct+'%';
-  if(btn){
-    if(state==='done'){btn.textContent='✔ Installé';btn.classList.add('inst');btn.disabled=true;}
-    else if(state==='dl'){btn.textContent=pct+'%…';btn.disabled=true;}
-  }
-}
-
-async function sendTask(){
-  const task=taskInput.value.trim();if(!task||sendBtn.disabled)return;
-  taskInput.value='';
-  if(!installedModels.length){log('⚠ Aucun modèle installé. Allez dans Modèles.','err');return;}
-  if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'task',task}));
-  else await fetch('/api/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task})});
-}
-sendBtn.onclick=sendTask;
-taskInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendTask();});
-
-async function loadInstalled(){
-  const el=document.getElementById('installed-list');
+// ── Installed ──
+async function loadInst(){
+  const el=$('ilist');
   try{
     const[lr,sr]=await Promise.all([fetch('/api/models/local'),fetch('/api/status')]);
     const{models,count}=await lr.json(),{active_model:am}=await sr.json();
-    installedModels=models.map(m=>m.name||m)||[];
-    document.getElementById('installed-count').textContent=count||0;
-    renderHeaderModels(am||{});
-    if(!models||!models.length){
-      el.innerHTML='<div class="empty-state">Aucun modèle installé.<br>Installez-en un depuis le catalogue ou par nom exact.</div>';return;
-    }
+    installed=(models||[]).map(m=>m.name||m);$('inst-cnt').textContent=count||0;renderHdr(am||{});
+    if(!models?.length){el.innerHTML='<div class="empty">Aucun modèle installé. Choisissez-en un dans le catalogue ci-dessous.</div>';return;}
     el.innerHTML='';
     models.forEach(m=>{
-      const name=m.name||m,isA=(name===am?.coder);
-      const div=document.createElement('div');div.className='installed-card'+(isA?' is-active':'');
-      div.innerHTML=`<div class="ic-info"><div class="ic-name">${name}${isA?'<span class="active-badge">actif</span>':''}</div><div class="ic-meta">${m.size||''} ${m.params?'· '+m.params:''} ${m.family?'· '+m.family:''}</div></div><div class="ic-actions"><button class="btn-sm btn-use${isA?' current':''}" onclick="setModel('${name}')">${isA?'✔ Actif':'Utiliser'}</button><button class="btn-sm btn-del" id="del_${name.replace(/[^a-z0-9]/gi,'_')}" onclick="deleteModel('${name}')">✕</button></div>`;
-      el.appendChild(div);
+      const n=m.name||m, isP=n===am?.planner, isC=n===am?.coder, isR=n===am?.reviewer;
+      const d=document.createElement('div');d.className='icard'+(isC?' act':'');
+      d.innerHTML=`<div class="iinfo"><div class="iname">${n}${isC?' <span class="badge">coder</span>':''}${isP&&!isC?' <span class="badge">planner</span>':''}${isR&&!isC&&!isP?' <span class="badge">reviewer</span>':''}</div><div class="imeta">${m.size||''} ${m.params?'· '+m.params:''} ${m.family?'· '+m.family:''}</div></div><div class="ibtns"><button class="btn-s btn-role${isP?' on':''}" onclick="setRole('${n}','planner')">🧠 Plan</button><button class="btn-s btn-role${isC?' on':''}" onclick="setRole('${n}','coder')">💻 Code</button><button class="btn-s btn-role${isR?' on':''}" onclick="setRole('${n}','reviewer')">🔍 Review</button><button class="btn-s btn-x" onclick="delModel('${n}')">✕</button></div>`;
+      el.appendChild(d);
     });
-  }catch(e){el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erreur : ${e.message}</div>`;}
+  }catch(e){el.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}
 }
 
-async function setModel(model){
-  await fetch('/api/models/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,role:'all'})});
-  log(`\n⬡ Modèle actif → ${model}`,'info');
-  await loadInstalled();populateModelSelects();
+async function setRole(model,role){
+  await fetch('/api/models/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,role})});
+  log(`⬡ ${role} → ${model}`,'info');await loadInst();popSelects();
+}
+async function delModel(m){
+  if(!confirm(`Supprimer "${m}" ?`))return;
+  try{await fetch('/api/models/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});log(`✕ ${m} supprimé.`,'err');await loadInst();}catch(e){log(`✘ ${e.message}`,'err');}
 }
 
-async function deleteModel(model){
-  if(!confirm(`Désinstaller "${model}" ?`))return;
-  const btn=document.getElementById('del_'+model.replace(/[^a-z0-9]/gi,'_'));
-  if(btn){btn.disabled=true;btn.textContent='…';}
-  try{
-    const r=await fetch('/api/models/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({model})});
-    const d=await r.json();
-    if(d.error){log(`✘ ${d.error}`,'err');if(btn){btn.disabled=false;btn.textContent='✕';}}
-    else{log(`✕ "${model}" supprimé.`,'err');await loadInstalled();}
-  }catch(e){log(`✘ ${e.message}`,'err');if(btn){btn.disabled=false;btn.textContent='✕';}}
+// ── Catalog ──
+async function loadCat(){
+  const grid=$('cgrid');grid.innerHTML='<div class="empty"><span class="spinner"></span> Chargement…</div>';
+  try{const r=await fetch('/api/models/catalog');const d=await r.json();catalog=d.models||[];renderCat();}catch(e){grid.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}
 }
+function filt(tag,btn){curTag=tag;document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderCat();}
 
-function searchCatalog(){clearTimeout(searchDebounce);searchDebounce=setTimeout(doSearch,400);}
-
-async function doSearch(){
-  const q=document.getElementById('catalog-search').value.trim();
-  const grid=document.getElementById('catalog-grid');
-  grid.innerHTML='<div class="catalog-empty"><span class="spinner"></span> Recherche…</div>';
-  try{
-    const r=await fetch('/api/models/search?q='+encodeURIComponent(q));
-    const d=await r.json();
-    if(d.offline||d.error){
-      grid.innerHTML=`<div class="offline-box"><span class="offline-icon">⚡</span><strong>Catalogue indisponible</strong><br>Impossible de joindre ollama.com — vérifiez votre connexion.<br><span style="font-size:10px;opacity:.7">Installez un modèle par nom exact dans la section ci-dessous.</span></div>`;
-      return;
-    }
-    catalogRaw=d.models||[];renderCatalog();
-  }catch(e){
-    grid.innerHTML=`<div class="offline-box" style="border-color:#3d2020"><span class="offline-icon">⚠</span><strong style="color:var(--red)">Erreur</strong><br>${e.message}</div>`;
-  }
-}
-
-function filterTag(tag,btn){currentTag=tag;document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderCatalog();}
-
-function renderCatalog(){
-  const grid=document.getElementById('catalog-grid');
-  let list=catalogRaw;
-  if(currentTag)list=list.filter(m=>(m.tags||[]).includes(currentTag)||(m.categories||[]).includes(currentTag));
-  if(!list.length){grid.innerHTML='<div class="catalog-empty">Aucun résultat.</div>';return;}
+function renderCat(){
+  const grid=$('cgrid');let list=catalog;
+  if(curTag)list=list.filter(m=>m.cat===curTag);
+  if(!list.length){grid.innerHTML='<div class="empty">Aucun modèle dans cette catégorie.</div>';return;}
   grid.innerHTML='';
-  const instSet=new Set(installedModels.map(n=>typeof n==='string'?n.split(':')[0]:n));
-  list.slice(0,24).forEach(m=>{
-    const name=m.name||m.model||'?';
-    const isInst=instSet.has(name)||installedModels.some(i=>(i.name||i)===name||(i.name||i).startsWith(name+':'));
-    const sid='p'+name.replace(/[^a-z0-9]/gi,'_');
-    const tags=(m.tags||m.categories||[]).slice(0,2);
-    const pulls=m.pulls?formatPulls(m.pulls):'';
-    const card=document.createElement('div');card.className='cat-card'+(isInst?' installed':'');
-    card.innerHTML=`<div class="cat-name">${name}</div><div class="cat-meta">${m.parameter_size?`<span class="cat-size">${m.parameter_size}</span>`:''}${tags.map(t=>`<span class="cat-tag ${t}">${t}</span>`).join('')}${isInst?'<span class="cat-tag instcheck">✔</span>':''}${pulls?`<span class="cat-size">↓${pulls}</span>`:''}</div>${m.description?`<div class="cat-desc">${m.description.slice(0,120)}${m.description.length>120?'…':''}</div>`:''}<div class="cat-actions"><button class="btn-install${isInst?' inst':''}" id="btn_${sid}" onclick="pullModel('${name}')" ${isInst?'disabled':''}>${isInst?'✔ Installé':'⬇ Installer'}</button>${isInst?`<button class="btn-sm btn-use" onclick="setModel('${name}')">Utiliser</button>`:''}</div><div class="prog-bar" id="bar_${sid}"><div class="prog-fill" id="fill_${sid}"></div></div>`;
+  list.forEach(m=>{
+    const sid='p'+m.name.replace(/[^a-z0-9]/gi,'_');
+    const card=document.createElement('div');card.className='ccard'+(m.installed?' inst':'');
+    card.innerHTML=`<div class="cname">${m.name}${m.recommended?'<span class="crec">★ recommandé</span>':''}</div><div class="cmeta"><span class="csize">${m.params}</span><span class="csize">${m.size}</span><span class="ctag ${m.cat}">${m.cat}</span><span class="csize">VRAM: ${m.vram}</span></div><div class="cdesc">${m.desc}</div><div class="cspeed">Vitesse: ${m.speed||'?'}</div><div class="cacts"><button class="btn-inst${m.installed?' done':''}" id="btn_${sid}" onclick="pullM('${m.name}')" ${m.installed?'disabled':''}>${m.installed?'✔ Installé':'⬇ Installer'}</button></div><div class="pbar" id="bar_${sid}"><div class="pfill" id="fill_${sid}"></div></div>`;
     grid.appendChild(card);
   });
 }
 
-function formatPulls(n){if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(0)+'K';return n;}
+async function pullM(m){switchTab('agent');await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});}
+async function pullCustom(){const m=$('custom-in').value.trim();if(!m)return;$('custom-in').value='';switchTab('agent');await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});}
 
-async function pullModel(model){switchTab('agent');await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model})});}
-
-async function pullCustom(){
-  const model=document.getElementById('custom-input').value.trim();if(!model)return;
-  document.getElementById('custom-input').value='';switchTab('agent');
-  await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model})});
-}
-
-async function loadConfig(){
+// ── Config ──
+async function loadCfg(){
   try{
-    const[cr,sr]=await Promise.all([fetch('/api/config'),fetch('/api/models/local')]);
-    const cfg=await cr.json(),{models}=await sr.json();
-    const modelNames=(models||[]).map(m=>m.name||m);
-    document.getElementById('cfg-max-retries').value=cfg.agents?.max_retries??3;
-    const temp=cfg.agents?.temperature??0.2;
-    document.getElementById('cfg-temp').value=temp;
-    document.getElementById('cfg-temp-val').textContent=temp;
-    document.getElementById('cfg-max-tokens').value=cfg.agents?.max_tokens??4096;
-    document.getElementById('cfg-cmd-timeout').value=cfg.sandbox?.command_timeout??30;
-    document.getElementById('cfg-max-file-kb').value=cfg.sandbox?.max_file_size_kb??512;
-    document.getElementById('cfg-ollama-timeout').value=cfg.ollama?.timeout??120;
-    populateSelect('cfg-planner',modelNames,cfg.models?.planner);
-    populateSelect('cfg-coder',modelNames,cfg.models?.coder);
-    populateSelect('cfg-reviewer',modelNames,cfg.models?.reviewer);
+    const[cr,mr]=await Promise.all([fetch('/api/config'),fetch('/api/models/local')]);
+    const cfg=await cr.json(),{models}=await mr.json();
+    const names=(models||[]).map(m=>m.name||m);
+    $('cfg-retries').value=cfg.agents?.max_retries??5;
+    const t=cfg.agents?.temperature??0.2;$('cfg-temp').value=t;$('cfg-tv').textContent=t;
+    $('cfg-tokens').value=cfg.agents?.max_tokens??8192;
+    $('cfg-cmdto').value=cfg.sandbox?.command_timeout??60;
+    $('cfg-maxf').value=cfg.sandbox?.max_file_size_kb??2048;
+    $('cfg-ollto').value=cfg.ollama?.timeout??300;
+    popSel('cfg-planner',names,cfg.models?.planner);popSel('cfg-coder',names,cfg.models?.coder);popSel('cfg-reviewer',names,cfg.models?.reviewer);
   }catch(e){console.error(e);}
 }
+function popSel(id,models,sel){const s=$(id);s.innerHTML='';if(!models.length){s.innerHTML='<option value="">— aucun —</option>';return;}models.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===sel)o.selected=true;s.appendChild(o);});}
+function popSelects(){fetch('/api/models/local').then(r=>r.json()).then(({models})=>{const n=(models||[]).map(m=>m.name||m);fetch('/api/config').then(r=>r.json()).then(c=>{popSel('cfg-planner',n,c.models?.planner);popSel('cfg-coder',n,c.models?.coder);popSel('cfg-reviewer',n,c.models?.reviewer);});});}
 
-function populateSelect(id,models,selected){
-  const sel=document.getElementById(id);sel.innerHTML='';
-  if(!models.length){const o=document.createElement('option');o.value='';o.textContent='— aucun modèle —';sel.appendChild(o);return;}
-  models.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===selected)o.selected=true;sel.appendChild(o);});
+async function saveCfg(){
+  const c={agents:{max_retries:+$('cfg-retries').value,temperature:+$('cfg-temp').value,max_tokens:+$('cfg-tokens').value},sandbox:{command_timeout:+$('cfg-cmdto').value,max_file_size_kb:+$('cfg-maxf').value},ollama:{timeout:+$('cfg-ollto').value},models:{planner:$('cfg-planner').value,coder:$('cfg-coder').value,reviewer:$('cfg-reviewer').value}};
+  try{const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});const d=await r.json();if(d.status==='ok'){const f=$('svfb');f.classList.add('show');setTimeout(()=>f.classList.remove('show'),2500);renderHdr(c.models);log('⚙ Config sauvegardée.','info');}}catch(e){log(`✘ ${e.message}`,'err');}
 }
 
-function populateModelSelects(){
-  fetch('/api/models/local').then(r=>r.json()).then(({models})=>{
-    const names=(models||[]).map(m=>m.name||m);
-    fetch('/api/config').then(r=>r.json()).then(cfg=>{
-      populateSelect('cfg-planner',names,cfg.models?.planner);
-      populateSelect('cfg-coder',names,cfg.models?.coder);
-      populateSelect('cfg-reviewer',names,cfg.models?.reviewer);
-    });
-  });
-}
+async function openF(p){try{const r=await fetch(`/api/file?path=${encodeURIComponent(p)}`),d=await r.json();$('fmt').textContent=p;$('fmc').textContent=d.content||d.error||'';$('fmodal').classList.add('open');}catch{}}
+function closeFM(){$('fmodal').classList.remove('open');}
+$('fmodal').onclick=e=>{if(e.target===e.currentTarget)closeFM();};
 
-async function saveConfig(){
-  const cfg={agents:{max_retries:parseInt(document.getElementById('cfg-max-retries').value),temperature:parseFloat(document.getElementById('cfg-temp').value),max_tokens:parseInt(document.getElementById('cfg-max-tokens').value)},sandbox:{command_timeout:parseInt(document.getElementById('cfg-cmd-timeout').value),max_file_size_kb:parseInt(document.getElementById('cfg-max-file-kb').value)},ollama:{timeout:parseInt(document.getElementById('cfg-ollama-timeout').value)},models:{planner:document.getElementById('cfg-planner').value,coder:document.getElementById('cfg-coder').value,reviewer:document.getElementById('cfg-reviewer').value}};
-  try{
-    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
-    const d=await r.json();
-    if(d.status==='ok'){const fb=document.getElementById('save-feedback');fb.classList.add('show');setTimeout(()=>fb.classList.remove('show'),2500);renderHeaderModels(cfg.models);log('\n⚙ Configuration sauvegardée.','info');}
-  }catch(e){log(`✘ Erreur sauvegarde : ${e.message}`,'err');}
-}
-
-async function openFile(path){
-  try{const r=await fetch(`/api/file?path=${encodeURIComponent(path)}`),d=await r.json();document.getElementById('fmt').textContent=path;document.getElementById('fmc').textContent=d.content||d.error||'';document.getElementById('file-modal').classList.add('open');}catch{}
-}
-function closeModal(){document.getElementById('file-modal').classList.remove('open');}
-document.getElementById('file-modal').onclick=e=>{if(e.target===e.currentTarget)closeModal();};
-
-fetchStatus();connectWS();doSearch();
+fetchStatus();connectWS();
 </script>
 </body>
 </html>
