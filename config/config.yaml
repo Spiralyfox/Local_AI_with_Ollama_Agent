@@ -1,0 +1,22 @@
+ollama:
+  base_url: "http://localhost:11434"
+  timeout: 120
+
+models:
+  planner:  "qwen2.5-coder:7b"
+  coder:    "qwen2.5-coder:7b"
+  reviewer: "qwen2.5-coder:7b"
+
+agents:
+  max_retries: 3
+  temperature: 0.2
+  max_tokens: 4096
+
+sandbox:
+  workspace: "~/ai-workspace"
+  command_timeout: 30
+  max_file_size_kb: 512
+
+web:
+  host: "127.0.0.1"
+  port: 8081
