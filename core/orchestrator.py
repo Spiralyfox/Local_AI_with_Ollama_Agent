@@ -1,12 +1,13 @@
 """
-Orchestrator v2 — coordonne les agents planificateur, codeur, critique.
-Optimisé pour projets lourds : multi-fichiers, retries intelligents, prompts robustes.
+Orchestrator v3 — multi-agent avec recherche web optionnelle.
+Flow : Planification → [Recherche web] → Codage → Review → Retry
 """
 import json
 import re
 from pathlib import Path
 from .ollama_client import OllamaClient
 from .sandbox import Sandbox
+from .web_search import WebSearcher
 from .logger import get_logger
 
 logger = get_logger("orchestrator")
@@ -18,6 +19,7 @@ AGENTS = {
 }
 
 MAX_RETRIES = 5
+WEB_SEARCH_ENABLED = False  # Togglable via config
 
 
 class Orchestrator:
@@ -25,19 +27,59 @@ class Orchestrator:
         self.workspace = workspace
         self.client = OllamaClient()
         self.sandbox = Sandbox(workspace)
+        self.searcher = WebSearcher(max_results=5)
+        self._broadcast = None  # Set by web app for live updates
+
+    def set_broadcast(self, broadcast_fn):
+        """Permet au serveur web d'envoyer des events live."""
+        self._broadcast = broadcast_fn
+
+    async def _emit(self, event: dict):
+        """Émet un événement vers le WebSocket si disponible."""
+        if self._broadcast:
+            try:
+                await self._broadcast(event)
+            except Exception:
+                pass
 
     async def run(self, task: str) -> dict:
         logger.info(f"Nouvelle tâche: {task!r}")
-        result = {"task": task, "success": False, "steps": [], "output": ""}
+        result = {"task": task, "success": False, "steps": [], "output": "",
+                  "web_search_used": False, "search_results": {}}
 
+        # 1. Planification
         plan = await self._plan(task)
         result["plan"] = plan
         logger.info(f"Plan: {plan}")
 
+        # 2. Recherche web (si activée et demandée par le planificateur)
+        web_context = ""
+        if WEB_SEARCH_ENABLED:
+            queries = plan.get("search_queries", [])
+            if queries:
+                await self._emit({"type": "search_start", "queries": queries})
+                logger.info(f"Recherche web: {queries}")
+
+                search_results = await self.searcher.multi_search(queries, max_per_query=3)
+                web_context = WebSearcher.format_results(search_results)
+                result["web_search_used"] = True
+                result["search_results"] = {
+                    q: [{"title": r["title"], "url": r["url"]} for r in items]
+                    for q, items in search_results.items()
+                }
+
+                await self._emit({
+                    "type": "search_done",
+                    "queries": queries,
+                    "result_count": sum(len(v) for v in search_results.values()),
+                })
+                logger.info(f"Recherche terminée: {sum(len(v) for v in search_results.values())} résultats")
+
+        # 3. Codage avec corrections auto
         previous_errors = []
         for attempt in range(1, MAX_RETRIES + 1):
             logger.info(f"Tentative {attempt}/{MAX_RETRIES}")
-            code_result = await self._code(task, plan, attempt, previous_errors)
+            code_result = await self._code(task, plan, attempt, previous_errors, web_context)
             result["steps"].append({"attempt": attempt, "code": code_result})
 
             review = await self._review(task, code_result)
@@ -46,11 +88,11 @@ class Orchestrator:
             if review.get("approved"):
                 result["success"] = True
                 result["output"] = code_result.get("output", "")
-                logger.info("Tâche approuvée par le reviewer.")
+                logger.info("Tâche approuvée.")
                 break
 
             reason = review.get("reason", "?")
-            logger.warning(f"Rejeté: {reason} — on réessaie.")
+            logger.warning(f"Rejeté: {reason}")
             previous_errors.append(reason)
 
             if review.get("fix_plan"):
@@ -58,65 +100,65 @@ class Orchestrator:
 
         return result
 
+    # ── Planificateur ─────────────────────────────────────────────
     async def _plan(self, task: str) -> dict:
-        prompt = f"""Tu es un agent planificateur expert en architecture logicielle.
-Analyse la tâche et décompose-la en étapes concrètes et précises.
-Pour les projets complexes, pense à : structure des fichiers, dépendances, tests, configuration.
+        search_instruction = ""
+        if WEB_SEARCH_ENABLED:
+            search_instruction = """
+- Si la tâche nécessite des informations récentes (API, documentation, syntaxe spécifique),
+  ajoute un champ "search_queries": ["query1", "query2"] avec 1-3 recherches Google pertinentes.
+- Si la tâche est faisable sans recherche, ne mets PAS le champ search_queries."""
 
-Réponds UNIQUEMENT avec un JSON valide (pas de markdown, pas de texte avant/après) :
-{{"steps": ["étape 1", "étape 2", ...], "files_to_create": ["chemin/fichier.ext", ...]}}
+        prompt = f"""Tu es un agent planificateur expert.
+Décompose la tâche en étapes concrètes.
+
+Réponds UNIQUEMENT en JSON valide (pas de markdown) :
+{{"steps": ["étape 1", "étape 2", ...], "files_to_create": ["chemin/fichier.ext", ...]{', "search_queries": ["recherche 1"]' if WEB_SEARCH_ENABLED else ''}}}
 
 Règles :
-- Maximum 8 étapes, minimum 2
-- Chaque étape doit être actionnable
-- Liste tous les fichiers à créer avec leurs chemins relatifs
-- Pour les projets web : inclure HTML, CSS/JS, et fichier serveur
-- Pour les projets Python : inclure requirements.txt si nécessaire
+- 2 à 8 étapes actionnables
+- Liste tous les fichiers à créer{search_instruction}
 
 Tâche : {task}"""
 
         raw = await self.client.chat(AGENTS["planner"], prompt)
         return self._parse_json(raw, {"steps": [task], "files_to_create": []})
 
-    async def _code(self, task: str, plan: dict, attempt: int, previous_errors: list) -> dict:
+    # ── Codeur ────────────────────────────────────────────────────
+    async def _code(self, task: str, plan: dict, attempt: int,
+                    previous_errors: list, web_context: str = "") -> dict:
         steps_txt = "\n".join(f"- {s}" for s in plan.get("steps", [task]))
         files_txt = ", ".join(plan.get("files_to_create", [])) or "à déterminer"
 
-        errors_context = ""
+        errors_block = ""
         if previous_errors:
             errors_txt = "\n".join(f"  - Tentative {i+1}: {e}" for i, e in enumerate(previous_errors))
-            errors_context = f"""
+            errors_block = f"\nERREURS PRÉCÉDENTES (corrige-les) :\n{errors_txt}\n"
 
-ERREURS DES TENTATIVES PRÉCÉDENTES (corrige-les) :
-{errors_txt}
-"""
+        web_block = ""
+        if web_context:
+            web_block = f"\n{web_context}\nUtilise ces informations web pour produire un code plus précis et à jour.\n"
 
-        prompt = f"""Tu es un agent codeur senior. Écris du code production-ready, complet et fonctionnel.
+        prompt = f"""Tu es un agent codeur senior. Code production-ready, complet, fonctionnel.
 
-Réponds UNIQUEMENT avec un JSON valide (pas de markdown, pas de ```json, pas de texte) :
+Réponds UNIQUEMENT en JSON valide :
 {{
-  "files": [
-    {{"path": "chemin/relatif/fichier.ext", "content": "contenu complet du fichier"}}
-  ],
-  "commands": ["commande shell optionnelle pour installer deps ou tester"]
+  "files": [{{"path": "chemin/fichier.ext", "content": "contenu COMPLET"}}],
+  "commands": ["commande shell optionnelle"]
 }}
 
-RÈGLES STRICTES :
-- Chaque fichier doit être COMPLET, pas de "..." ou "# reste du code"
-- Inclure TOUS les imports nécessaires
-- Inclure la gestion d'erreurs
-- Pour Python : ajouter if __name__ == "__main__" quand pertinent
-- Pour les serveurs : utiliser le port 8000 par défaut
-- Pour HTML : inclure CSS inline, page complète avec <!DOCTYPE html>
-- Les commandes shell sont optionnelles (pip install, npm install, etc.)
-- NE PAS utiliser sudo dans les commandes
-
+RÈGLES :
+- Chaque fichier COMPLET (tous les imports, gestion d'erreurs, pas de "...")
+- Pour Python : if __name__ == "__main__" quand pertinent
+- Pour HTML : page complète avec <!DOCTYPE html> et CSS inline
+- NE PAS utiliser sudo
+{web_block}
 Tâche : {task}
 Plan :
 {steps_txt}
-Fichiers attendus : {files_txt}
-Tentative n°{attempt}/{MAX_RETRIES}
-{errors_context}"""
+Fichiers : {files_txt}
+Tentative {attempt}/{MAX_RETRIES}
+{errors_block}"""
 
         raw = await self.client.chat(AGENTS["coder"], prompt)
         data = self._parse_json(raw, {"files": [], "commands": []})
@@ -136,49 +178,41 @@ Tentative n°{attempt}/{MAX_RETRIES}
         data["output"] = "\n".join(output_log)
         return data
 
+    # ── Reviewer ──────────────────────────────────────────────────
     async def _review(self, task: str, code_result: dict) -> dict:
         files_summary = "\n".join(
             f"=== {f['path']} ===\n{f['content'][:1500]}"
             for f in code_result.get("files", [])
         )
 
-        prompt = f"""Tu es un agent reviewer senior et exigeant.
-Évalue si le code produit répond COMPLÈTEMENT à la tâche demandée.
+        prompt = f"""Tu es un reviewer senior exigeant.
+Évalue si le code répond COMPLÈTEMENT à la tâche.
 
-Réponds UNIQUEMENT avec un JSON valide :
-{{"approved": true/false, "reason": "explication", "fix_plan": {{"steps": [...], "files_to_create": [...]}}}}
+Réponds UNIQUEMENT en JSON valide :
+{{"approved": true/false, "reason": "...", "fix_plan": {{"steps": [...], "files_to_create": [...]}}}}
 
-Critères d'évaluation :
-1. Le code est-il complet ? (pas de placeholder, pas de "TODO")
-2. Les imports sont-ils tous présents ?
-3. Le code gère-t-il les erreurs ?
-4. Le code correspond-il à la tâche demandée ?
-5. Pour le web : HTML complet, CSS inclus ?
+Critères :
+1. Code complet ? (pas de TODO/placeholder)
+2. Imports présents ?
+3. Gestion d'erreurs ?
+4. Correspond à la tâche ?
 
-Si le code est bon et fonctionnel → approved: true
-Si un problème est trouvé → approved: false avec un fix_plan précis
-
-Tâche originale : {task}
-Résultat d'exécution : {code_result.get('output', 'aucun')}
-Fichiers produits :
+Tâche : {task}
+Exécution : {code_result.get('output', 'aucun')}
+Fichiers :
 {files_summary}"""
 
         raw = await self.client.chat(AGENTS["reviewer"], prompt)
         return self._parse_json(raw, {"approved": True, "reason": "auto-approve (parse error)"})
 
+    # ── JSON parser robuste ───────────────────────────────────────
     def _parse_json(self, raw: str, fallback: dict) -> dict:
-        """Parse robuste de JSON depuis la sortie LLM."""
-        # Nettoyer les blocs markdown
         cleaned = re.sub(r'^```(?:json)?\s*\n?', '', raw.strip(), flags=re.MULTILINE)
         cleaned = re.sub(r'\n?```\s*$', '', cleaned.strip(), flags=re.MULTILINE)
-
-        # Essai direct
         try:
             return json.loads(cleaned)
         except Exception:
             pass
-
-        # Chercher le premier { ... } valide
         depth = 0
         start = None
         for i, c in enumerate(raw):
@@ -192,6 +226,5 @@ Fichiers produits :
                         return json.loads(raw[start:i+1])
                     except:
                         start = None
-
-        logger.warning(f"JSON parse failed, using fallback. Raw[:200]: {raw[:200]}")
+        logger.warning(f"JSON parse failed. Raw[:200]: {raw[:200]}")
         return fallback

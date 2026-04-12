@@ -17,6 +17,9 @@ sandbox:
   command_timeout: 60
   max_file_size_kb: 2048
 
+web_search:
+  enabled: false
+
 web:
   host: "127.0.0.1"
   port: 8080
