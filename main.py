@@ -1,12 +1,15 @@
+#!/usr/bin/env python3
 """
 Point d'entrée principal — lance le serveur Uvicorn.
-Usage: python main.py [--port 8080]
+Usage:
+  python3 main.py                  → port 8080
+  python3 main.py --port 9090     → port 9090
+  python3 main.py --host 0.0.0.0  → accessible depuis le réseau local
 """
 import argparse
 import sys
 from pathlib import Path
 
-# Patch pour servir index.html depuis web/
 import uvicorn
 from fastapi.responses import HTMLResponse
 
@@ -23,9 +26,12 @@ async def root():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Local AI System")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--reload", action="store_true")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Adresse d'écoute (défaut: 127.0.0.1, utilise 0.0.0.0 pour le réseau local)")
+    parser.add_argument("--port", "-p", type=int, default=8080,
+                        help="Port d'écoute (défaut: 8080)")
+    parser.add_argument("--reload", action="store_true",
+                        help="Hot-reload en développement")
     args = parser.parse_args()
 
     print(f"""
@@ -35,6 +41,7 @@ if __name__ == "__main__":
 ║  Interface : http://{args.host}:{args.port:<5}         ║
 ║  Workspace : ~/ai-workspace              ║
 ║  Backend   : Ollama (localhost:11434)    ║
+║  Arrêter   : Ctrl+C                     ║
 ╚══════════════════════════════════════════╝
 """)
     uvicorn.run(
