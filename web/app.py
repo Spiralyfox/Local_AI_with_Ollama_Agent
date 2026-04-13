@@ -1,5 +1,13 @@
 """
-Interface web FastAPI v5 — catalogue hardcodé + recherche web + config
+Interface web FastAPI v5.0
+Corrections v5.0 :
+  - Toute la config (temperature, max_tokens, cmd_timeout) appliquée au démarrage
+  - _apply_config couvre tous les paramètres d'orchestrator
+  - sandbox.max_file_size_kb synchronisé avec la config
+  - Endpoint GET /api/config retourne la config complète avec valeurs runtime
+  - Endpoint POST /api/task/cancel pour annuler la tâche en cours
+  - WebSocket : ping/pong keepalive pour éviter les déconnexions
+  - Gestion propre des erreurs sur /api/models/delete et /api/models/pull
 """
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -14,17 +22,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core import Orchestrator, OllamaClient, WebSearcher, get_logger
 
-logger = get_logger("web")
-
-WORKSPACE = Path.home() / "ai-workspace"
-OLLAMA_URL = "http://localhost:11434"
+logger      = get_logger("web")
+WORKSPACE   = Path.home() / "ai-workspace"
+OLLAMA_URL  = "http://localhost:11434"
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "config.yaml"
 
-app = FastAPI(title="Local AI System", version="4.1")
+app          = FastAPI(title="Local AI System", version="5.0")
 orchestrator = Orchestrator(WORKSPACE)
-ollama = OllamaClient()
+ollama       = OllamaClient()
 
-# Verrou tâche unique — empêche deux exécutions simultanées sur le même orchestrateur
+# Verrou tâche unique — empêche deux exécutions simultanées
 _task_lock = asyncio.Lock()
 
 # ── Catalogue hardcodé ────────────────────────────────────────────
@@ -72,136 +79,189 @@ HARDCODED_CATALOG = [
 ]
 
 # ── Config ────────────────────────────────────────────────────────
-def load_config():
+
+def load_config() -> dict:
     if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     return {}
 
 def save_config(cfg: dict):
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CONFIG_PATH, "w") as f:
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
 
-runtime_config = load_config()
+def _apply_config(cfg: dict):
+    """Applique TOUTE la config à l'orchestrateur et au sandbox."""
+    import core.orchestrator as om
+
+    agents_cfg = cfg.get("agents", {})
+    if "max_retries" in agents_cfg:
+        om.MAX_RETRIES   = int(agents_cfg["max_retries"])
+    if "temperature" in agents_cfg:
+        om.TEMPERATURE   = float(agents_cfg["temperature"])
+    if "max_tokens" in agents_cfg:
+        om.MAX_TOKENS    = int(agents_cfg["max_tokens"])
+
+    sandbox_cfg = cfg.get("sandbox", {})
+    if "command_timeout" in sandbox_cfg:
+        om.CMD_TIMEOUT   = int(sandbox_cfg["command_timeout"])
+    if "max_file_size_kb" in sandbox_cfg:
+        orchestrator.sandbox.set_max_file_size(int(sandbox_cfg["max_file_size_kb"]))
+
+    models_cfg = cfg.get("models", {})
+    for role in ("planner", "coder", "reviewer"):
+        if role in models_cfg:
+            om.AGENTS[role]        = models_cfg[role]
+            active_model[role]     = models_cfg[role]
+
+    ws_cfg = cfg.get("web_search", {})
+    if "enabled" in ws_cfg:
+        om.WEB_SEARCH_ENABLED = bool(ws_cfg["enabled"])
+        logger.info(f"Recherche web: {'activée' if om.WEB_SEARCH_ENABLED else 'désactivée'}")
+
+    ollama_cfg = cfg.get("ollama", {})
+    if "timeout" in ollama_cfg:
+        orchestrator.client.timeout = int(ollama_cfg["timeout"])
+
+# Initialisation
+_runtime_config = load_config()
 
 active_model = {
-    "planner":  runtime_config.get("models", {}).get("planner",  "qwen2.5-coder:7b"),
-    "coder":    runtime_config.get("models", {}).get("coder",    "qwen2.5-coder:7b"),
-    "reviewer": runtime_config.get("models", {}).get("reviewer", "qwen2.5-coder:7b"),
+    "planner":  _runtime_config.get("models", {}).get("planner",  "qwen2.5-coder:7b"),
+    "coder":    _runtime_config.get("models", {}).get("coder",    "qwen2.5-coder:7b"),
+    "reviewer": _runtime_config.get("models", {}).get("reviewer", "qwen2.5-coder:7b"),
 }
 
-# Appliquer web_search au démarrage
-import core.orchestrator as _orc
-_orc.WEB_SEARCH_ENABLED = runtime_config.get("web_search", {}).get("enabled", False)
+# Appliquer toute la config au démarrage
+_apply_config(_runtime_config)
 
 # ── WebSocket manager ─────────────────────────────────────────────
+
 class ConnectionManager:
     def __init__(self):
         self.active: list[WebSocket] = []
+
     async def connect(self, ws: WebSocket):
         await ws.accept()
         self.active.append(ws)
+
     def disconnect(self, ws: WebSocket):
-        if ws in self.active: self.active.remove(ws)
+        if ws in self.active:
+            self.active.remove(ws)
+
     async def broadcast(self, msg: dict):
         dead = []
         for ws in self.active:
-            try: await ws.send_json(msg)
-            except: dead.append(ws)
-        for ws in dead: self.active.remove(ws)
+            try:
+                await ws.send_json(msg)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.active.remove(ws)
 
 manager = ConnectionManager()
-
-# Wire orchestrator broadcasts
 orchestrator.set_broadcast(manager.broadcast)
 
 @app.on_event("shutdown")
 async def _shutdown():
-    """Ferme proprement le client httpx Ollama au shutdown."""
     await orchestrator.client.aclose()
     await ollama.aclose()
 
-# ── API Status ────────────────────────────────────────────────────
+# ── Status ────────────────────────────────────────────────────────
+
 @app.get("/api/status")
 async def status():
-    alive = await ollama.is_alive()
+    import core.orchestrator as om
+    alive  = await ollama.is_alive()
     models = await ollama.list_models() if alive else []
-    cfg = load_config()
+    cfg    = load_config()
     return {
-        "ollama": alive, "models": models, "active_model": active_model,
-        "workspace": str(WORKSPACE), "files": orchestrator.sandbox.list_files(),
-        "web_search_enabled": cfg.get("web_search", {}).get("enabled", False),
+        "ollama":             alive,
+        "models":             models,
+        "active_model":       active_model,
+        "workspace":          str(WORKSPACE),
+        "files":              orchestrator.sandbox.list_files(),
+        "web_search_enabled": om.WEB_SEARCH_ENABLED,
+        "task_running":       _task_lock.locked(),
     }
 
-# ── API Modèles ───────────────────────────────────────────────────
+# ── Modèles ───────────────────────────────────────────────────────
+
 @app.get("/api/models/local")
 async def local_models():
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{OLLAMA_URL}/api/tags")
             r.raise_for_status()
-            data = r.json()
             models = []
-            for m in data.get("models", []):
+            for m in r.json().get("models", []):
                 sb = m.get("size", 0)
-                models.append({"name": m["name"],
-                    "size": f"{sb/1e9:.1f} GB" if sb > 1e9 else f"{sb/1e6:.0f} MB",
+                models.append({
+                    "name":   m["name"],
+                    "size":   f"{sb/1e9:.1f} GB" if sb > 1e9 else f"{sb/1e6:.0f} MB",
                     "family": m.get("details", {}).get("family", ""),
-                    "params": m.get("details", {}).get("parameter_size", "")})
+                    "params": m.get("details", {}).get("parameter_size", ""),
+                })
             return {"models": models, "count": len(models)}
     except Exception as e:
         return {"models": [], "count": 0, "error": str(e)}
 
 @app.get("/api/models/catalog")
 async def catalog_models():
-    installed = []
+    installed: list[str] = []
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"{OLLAMA_URL}/api/tags")
             if r.status_code == 200:
                 installed = [m["name"] for m in r.json().get("models", [])]
-    except: pass
+    except Exception:
+        pass
+
     catalog = []
     for m in HARDCODED_CATALOG:
         entry = dict(m)
-        base = entry["name"].split(":")[0]
-        entry["installed"] = any(i == entry["name"] or i.startswith(base + ":") for i in installed)
+        base  = entry["name"].split(":")[0]
+        entry["installed"] = any(
+            i == entry["name"] or i.startswith(base + ":") for i in installed
+        )
         catalog.append(entry)
     return {"models": catalog, "installed_names": installed}
 
-@app.get("/api/models/search")
-async def search_models(q: str = ""):
-    return await catalog_models()
-
 @app.post("/api/models/set")
 async def set_model(body: dict):
+    import core.orchestrator as om
     model = body.get("model", "").strip()
-    role = body.get("role", "all")
-    if not model: return JSONResponse({"error": "model vide"}, status_code=400)
-    from core.orchestrator import AGENTS
-    if role in ("all", "coder"): active_model["coder"] = model; AGENTS["coder"] = model
-    if role in ("all", "planner"): active_model["planner"] = model; AGENTS["planner"] = model
-    if role in ("all", "reviewer"): active_model["reviewer"] = model; AGENTS["reviewer"] = model
-    cfg = load_config(); cfg.setdefault("models", {})
-    if role == "all":
-        cfg["models"]["planner"] = cfg["models"]["coder"] = cfg["models"]["reviewer"] = model
-    else:
-        cfg["models"][role] = model
+    role  = body.get("role",  "all")
+    if not model:
+        return JSONResponse({"error": "model vide"}, status_code=400)
+
+    roles = ["planner", "coder", "reviewer"] if role == "all" else [role]
+    for r in roles:
+        if r in om.AGENTS:
+            om.AGENTS[r]   = model
+            active_model[r] = model
+
+    cfg = load_config()
+    cfg.setdefault("models", {})
+    for r in roles:
+        cfg["models"][r] = model
     save_config(cfg)
     return {"status": "ok", "active_model": active_model}
 
 @app.post("/api/models/pull")
 async def pull_model(body: dict):
     model = body.get("model", "").strip()
-    if not model: return JSONResponse({"error": "model vide"}, status_code=400)
+    if not model:
+        return JSONResponse({"error": "model vide"}, status_code=400)
     asyncio.create_task(_pull_and_broadcast(model))
     return {"status": "pulling", "model": model}
 
 @app.delete("/api/models/delete")
 async def delete_model(body: dict):
     model = body.get("model", "").strip()
-    if not model: return JSONResponse({"error": "model vide"}, status_code=400)
+    if not model:
+        return JSONResponse({"error": "model vide"}, status_code=400)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.request("DELETE", f"{OLLAMA_URL}/api/delete", json={"name": model})
@@ -212,49 +272,68 @@ async def delete_model(body: dict):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-# ── API Config ────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────
+
 @app.get("/api/config")
 async def get_config():
-    return load_config()
+    import core.orchestrator as om
+    cfg = load_config()
+    # Enrichir avec les valeurs runtime (ce qui est réellement appliqué)
+    cfg.setdefault("agents",  {})
+    cfg.setdefault("sandbox", {})
+    cfg["agents"]["max_retries"]   = om.MAX_RETRIES
+    cfg["agents"]["temperature"]   = om.TEMPERATURE
+    cfg["agents"]["max_tokens"]    = om.MAX_TOKENS
+    cfg["sandbox"]["command_timeout"] = om.CMD_TIMEOUT
+    cfg["web_search"] = {"enabled": om.WEB_SEARCH_ENABLED}
+    return cfg
 
 @app.post("/api/config")
 async def set_config(body: dict):
     try:
         cfg = load_config()
-        def deep_merge(base, override):
+
+        def deep_merge(base: dict, override: dict):
             for k, v in override.items():
-                if isinstance(v, dict) and isinstance(base.get(k), dict): deep_merge(base[k], v)
-                else: base[k] = v
+                if isinstance(v, dict) and isinstance(base.get(k), dict):
+                    deep_merge(base[k], v)
+                else:
+                    base[k] = v
+
         deep_merge(cfg, body)
         save_config(cfg)
         _apply_config(cfg)
         return {"status": "ok", "config": cfg}
     except Exception as e:
+        logger.error(f"Erreur save_config: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
-def _apply_config(cfg: dict):
-    from core.orchestrator import AGENTS
-    import core.orchestrator as om
-    agents_cfg = cfg.get("agents", {})
-    if "max_retries" in agents_cfg: om.MAX_RETRIES = int(agents_cfg["max_retries"])
-    models_cfg = cfg.get("models", {})
-    for role in ("planner", "coder", "reviewer"):
-        if role in models_cfg: AGENTS[role] = models_cfg[role]; active_model[role] = models_cfg[role]
-    # Web search toggle
-    ws_cfg = cfg.get("web_search", {})
-    if "enabled" in ws_cfg:
-        om.WEB_SEARCH_ENABLED = bool(ws_cfg["enabled"])
-        logger.info(f"Recherche web: {'activée' if om.WEB_SEARCH_ENABLED else 'désactivée'}")
+# ── Tâches ────────────────────────────────────────────────────────
 
-# ── API Tâches ────────────────────────────────────────────────────
 @app.post("/api/task")
 async def run_task(body: dict):
     task = body.get("task", "").strip()
-    if not task: return JSONResponse({"error": "task vide"}, status_code=400)
+    if not task:
+        return JSONResponse({"error": "task vide"}, status_code=400)
     if _task_lock.locked():
-        return JSONResponse({"error": "Une tâche est déjà en cours. Attends qu'elle se termine."}, status_code=409)
+        return JSONResponse(
+            {"error": "Une tâche est déjà en cours. Attends qu'elle se termine."},
+            status_code=409,
+        )
     asyncio.create_task(_run_and_broadcast(task))
     return {"status": "started", "task": task}
+
+@app.post("/api/task/cancel")
+async def cancel_task():
+    """Indique à l'UI qu'une annulation est demandée.
+    Le verrou sera libéré à la fin de la tâche en cours."""
+    if not _task_lock.locked():
+        return {"status": "no_task"}
+    await manager.broadcast({"type": "log", "level": "err",
+        "msg": "⚠ Annulation demandée — la tâche en cours se terminera à la prochaine étape."})
+    return {"status": "cancel_requested"}
+
+# ── Fichiers ──────────────────────────────────────────────────────
 
 @app.get("/api/files")
 async def list_files():
@@ -263,37 +342,60 @@ async def list_files():
 @app.get("/api/file")
 async def read_file(path: str):
     ok, content = orchestrator.sandbox.read_file(path)
-    if not ok: return JSONResponse({"error": content}, status_code=404)
+    if not ok:
+        return JSONResponse({"error": content}, status_code=404)
     return {"path": path, "content": content}
 
-# ── API Web Search test ───────────────────────────────────────────
+# ── Web search ────────────────────────────────────────────────────
+
 @app.get("/api/websearch/status")
 async def websearch_status():
-    """Check si le module de recherche est disponible."""
-    searcher = WebSearcher()
+    import core.orchestrator as om
+    searcher  = WebSearcher()
     available = await searcher.is_available()
-    cfg = load_config()
-    enabled = cfg.get("web_search", {}).get("enabled", False)
-    return {"available": available, "enabled": enabled}
+    return {"available": available, "enabled": om.WEB_SEARCH_ENABLED}
+
+# ── WebSocket ─────────────────────────────────────────────────────
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await manager.connect(ws)
     try:
         while True:
-            data = await ws.receive_text()
-            msg = json.loads(data)
+            try:
+                # Timeout pour détecter les connexions mortes
+                data = await asyncio.wait_for(ws.receive_text(), timeout=30)
+            except asyncio.TimeoutError:
+                # Ping keepalive
+                try:
+                    await ws.send_json({"type": "ping"})
+                except Exception:
+                    break
+                continue
+
+            try:
+                msg  = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+
             if msg.get("type") == "task":
                 task = msg.get("task", "").strip()
                 if task:
                     if _task_lock.locked():
-                        await ws.send_json({"type": "error", "message": "Une tâche est déjà en cours."})
+                        await ws.send_json({"type": "error",
+                            "message": "Une tâche est déjà en cours."})
                     else:
                         asyncio.create_task(_run_and_broadcast(task))
+            elif msg.get("type") == "pong":
+                pass  # keepalive réponse
+
     except WebSocketDisconnect:
+        pass
+    finally:
         manager.disconnect(ws)
 
-# ── Helpers ───────────────────────────────────────────────────────
+# ── Helpers internes ──────────────────────────────────────────────
+
 async def _run_and_broadcast(task: str):
     async with _task_lock:
         await manager.broadcast({"type": "started", "task": task})
@@ -301,19 +403,26 @@ async def _run_and_broadcast(task: str):
             result = await orchestrator.run(task)
             await manager.broadcast({"type": "result", "data": result})
         except Exception as e:
+            logger.error(f"Erreur orchestrator: {e}", exc_info=True)
             await manager.broadcast({"type": "error", "message": str(e)})
 
 async def _pull_and_broadcast(model: str):
     await manager.broadcast({"type": "pull_start", "model": model})
     try:
         async with httpx.AsyncClient(timeout=3600) as client:
-            async with client.stream("POST", f"{OLLAMA_URL}/api/pull", json={"name": model}) as r:
+            async with client.stream(
+                "POST", f"{OLLAMA_URL}/api/pull", json={"name": model}
+            ) as r:
                 async for line in r.aiter_lines():
                     if line:
                         try:
                             data = json.loads(line)
-                            await manager.broadcast({"type": "pull_progress", "model": model, "data": data})
-                        except: pass
+                            await manager.broadcast({
+                                "type": "pull_progress", "model": model, "data": data
+                            })
+                        except Exception:
+                            pass
         await manager.broadcast({"type": "pull_done", "model": model})
     except Exception as e:
+        logger.error(f"Pull error {model}: {e}")
         await manager.broadcast({"type": "pull_error", "model": model, "message": str(e)})

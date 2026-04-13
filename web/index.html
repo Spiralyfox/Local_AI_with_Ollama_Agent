@@ -12,7 +12,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 .logo{color:var(--green);font-weight:700;font-size:14px;letter-spacing:.05em;white-space:nowrap}.logo span{color:var(--muted);font-weight:400}
 #status-dot{width:8px;height:8px;border-radius:50%;background:var(--red);transition:background .4s;flex-shrink:0}#status-dot.ok{background:var(--green);box-shadow:0 0 5px var(--green)}
 .hmodels{display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap}
-.hchip{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:10px;color:var(--muted);white-space:nowrap}.hchip span{color:var(--blue)}.hchip.ws-on{border-color:var(--teal)}.hchip.ws-on span{color:var(--teal)}
+.hchip{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:10px;color:var(--muted);white-space:nowrap}.hchip span{color:var(--blue)}.hchip.ws-on{border-color:var(--teal)}.hchip.ws-on span{color:var(--teal)}.hchip.running{border-color:var(--amber)}.hchip.running span{color:var(--amber)}
 .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;padding:0 8px}
 .tab{padding:7px 18px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--muted);border:none;border-bottom:2px solid transparent;transition:all .2s;background:none;letter-spacing:.03em}.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
 .panel{display:none;flex:1;overflow:hidden;min-height:0}.panel.active{display:flex}
@@ -23,14 +23,14 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 .line .msg{flex:1;min-width:0}
 .line.system .msg{color:var(--muted)}.line.task .msg{color:var(--amber);font-weight:600}.line.ok .msg{color:var(--green)}.line.err .msg{color:var(--red)}.line.info .msg{color:var(--blue)}.line.plan .msg{color:#c9d1d9}.line.search .msg{color:var(--teal)}
 .line.phase .msg{font-weight:600;padding:2px 0}
-.line.phase.start .msg{color:var(--blue)}.line.phase.done .msg{color:var(--green)}
-.line.phase.done.rejected .msg{color:var(--red)}
-.line.separator{border-top:1px solid var(--border2);margin:6px 0 4px;padding:0;height:0;display:block}
+.line.phase.start .msg{color:var(--blue)}.line.phase.done .msg{color:var(--green)}.line.phase.done.rejected .msg{color:var(--red)}
+.line.separator{border-top:1px solid var(--border2);margin:6px 0 4px;height:0;display:block}
 .line.stream-live .msg{color:var(--muted);opacity:.75;font-style:italic;white-space:pre-wrap;word-break:break-all}
 .line.stream-live{border-left:2px solid var(--blue);padding-left:6px;opacity:.85}
 #input-bar{border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px;background:var(--surface);flex-shrink:0;align-items:center}
 #task-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;min-width:0}#task-input:focus{border-color:var(--blue)}#task-input::placeholder{color:var(--muted)}
-.sbtn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0}.sbtn:hover{background:#2ea043}.sbtn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
+.sbtn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .2s}.sbtn:hover{background:#2ea043}.sbtn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
+.cbtn{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:7px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none}.cbtn:hover{border-color:var(--red);color:var(--red)}.cbtn.visible{display:block}
 #sidebar{width:210px;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;flex-shrink:0}
 .stitle{padding:7px 12px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);flex-shrink:0}
 #file-list{overflow-y:auto;flex:1}.fitem{padding:5px 12px;font-size:11px;color:var(--blue);cursor:pointer;border-bottom:1px solid var(--border2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fitem:hover{background:var(--surface2)}
@@ -53,13 +53,25 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 </style>
 </head>
 <body>
-<header><div class="logo">⬡ Local AI <span>/ agent system</span></div><div id="status-dot"></div><div class="hmodels" id="hmodels"><div class="hchip">chargement…</div></div></header>
-<div class="tabs"><button class="tab active" onclick="switchTab('agent')">⬡ Agent</button><button class="tab" onclick="switchTab('models')">⬢ Modèles</button><button class="tab" onclick="switchTab('config')">⚙ Config</button></div>
+<header>
+  <div class="logo">⬡ Local AI <span>/ agent system</span></div>
+  <div id="status-dot"></div>
+  <div class="hmodels" id="hmodels"><div class="hchip">chargement…</div></div>
+</header>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('agent')">⬡ Agent</button>
+  <button class="tab" onclick="switchTab('models')">⬢ Modèles</button>
+  <button class="tab" onclick="switchTab('config')">⚙ Config</button>
+</div>
 
 <div id="agent-panel" class="panel active">
   <div id="terminal-pane">
     <div id="output"></div>
-    <div id="input-bar"><input id="task-input" type="text" placeholder="Décris une tâche… ex: Crée un serveur HTTP Python avec /hello" autocomplete="off"><button id="send-btn" class="sbtn">▶ Lancer</button></div>
+    <div id="input-bar">
+      <input id="task-input" type="text" placeholder="Décris une tâche… ex: Crée un serveur HTTP Python avec /hello" autocomplete="off">
+      <button id="cancel-btn" class="cbtn" onclick="cancelTask()">✕ Annuler</button>
+      <button id="send-btn" class="sbtn">▶ Lancer</button>
+    </div>
   </div>
   <div id="sidebar"><div class="stitle">Workspace</div><div id="file-list"></div></div>
 </div>
@@ -67,7 +79,18 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 <div id="models-panel" class="panel">
   <div class="pcontent">
     <div><div class="sh">Modèles installés <span class="cnt" id="inst-cnt">0</span></div><div id="ilist" class="ilist"><div class="empty">Chargement…</div></div></div>
-    <div><div class="sh">Catalogue — modèles recommandés</div><div class="frow"><button class="fbtn active" onclick="filt('',this)">Tous</button><button class="fbtn" onclick="filt('code',this)">Code</button><button class="fbtn" onclick="filt('reasoning',this)">Raisonnement</button><button class="fbtn" onclick="filt('general',this)">Général</button><button class="fbtn" onclick="filt('vision',this)">Vision</button><button class="fbtn" onclick="filt('embedding',this)">Embedding</button></div><div id="cgrid" class="cgrid"><div class="empty">Chargement…</div></div></div>
+    <div>
+      <div class="sh">Catalogue — modèles recommandés</div>
+      <div class="frow">
+        <button class="fbtn active" onclick="filt('',this)">Tous</button>
+        <button class="fbtn" onclick="filt('code',this)">Code</button>
+        <button class="fbtn" onclick="filt('reasoning',this)">Raisonnement</button>
+        <button class="fbtn" onclick="filt('general',this)">Général</button>
+        <button class="fbtn" onclick="filt('vision',this)">Vision</button>
+        <button class="fbtn" onclick="filt('embedding',this)">Embedding</button>
+      </div>
+      <div id="cgrid" class="cgrid"><div class="empty">Chargement…</div></div>
+    </div>
     <div><div class="sh">Installer par nom exact</div><div class="crow"><input id="custom-in" type="text" placeholder="ex: qwen2.5-coder:32b  ou  deepseek-r1:14b"><button class="btn-pull" onclick="pullCustom()">⬇ Installer</button></div></div>
   </div>
 </div>
@@ -75,60 +98,121 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 <div id="config-panel" class="panel">
   <div class="pcontent">
     <div class="cgroup"><div class="cgtitle">🌐 Recherche Web</div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Accès Internet pour les IA</div><div class="cdsc2">Le planificateur peut déclencher des recherches DuckDuckGo. Les résultats sont injectés dans le contexte du codeur.</div></div><div class="cctrl"><div class="trow"><span class="tlbl" id="ws-lbl">OFF</span><label class="toggle"><input type="checkbox" id="cfg-ws" onchange="toggleWS(this)"><span class="sl"></span></label></div></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Accès Internet pour les IA</div><div class="cdsc2">Le planificateur peut déclencher des recherches DuckDuckGo. Les résultats sont injectés dans le contexte du codeur.</div></div>
+      <div class="cctrl"><div class="trow"><span class="tlbl" id="ws-lbl">OFF</span><label class="toggle"><input type="checkbox" id="cfg-ws" onchange="toggleWS(this)"><span class="sl"></span></label></div></div></div>
     </div>
     <div class="cgroup"><div class="cgtitle">Modèles par rôle</div>
-      <div class="crow2"><div class="clabel"><div class="ckey">🧠 Planificateur</div><div class="cdsc2">Modèle raisonnement idéal.</div></div><div class="cctrl"><select class="csel" id="cfg-planner"></select></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">💻 Codeur</div><div class="cdsc2">Modèle code idéal.</div></div><div class="cctrl"><select class="csel" id="cfg-coder"></select></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">🔍 Reviewer</div><div class="cdsc2">Modèle général ou raisonnement.</div></div><div class="cctrl"><select class="csel" id="cfg-reviewer"></select></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">🧠 Planificateur</div><div class="cdsc2">Recommandé : deepseek-r1:7b (raisonnement)</div></div><div class="cctrl"><select class="csel" id="cfg-planner"></select></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">💻 Codeur</div><div class="cdsc2">Recommandé : qwen2.5-coder:7b</div></div><div class="cctrl"><select class="csel" id="cfg-coder"></select></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">🔍 Reviewer</div><div class="cdsc2">Recommandé : qwen3:8b (général)</div></div><div class="cctrl"><select class="csel" id="cfg-reviewer"></select></div></div>
+      <div class="crow2" style="background:#0d1f0d"><div class="clabel"><div class="ckey" style="color:var(--amber)">⚠ Swap de modèles</div><div class="cdsc2">Si les 3 rôles utilisent des modèles différents, Ollama décharge/recharge à chaque changement d'agent (~5-15s par swap). Utilise le même modèle partout pour éviter ça.</div></div></div>
     </div>
     <div class="cgroup"><div class="cgtitle">Agents</div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Tentatives max</div></div><div class="cctrl"><input class="cinput" id="cfg-retries" type="number" min="1" max="15" value="5"></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Température</div></div><div class="cctrl"><div class="rwrap"><input class="rng" id="cfg-temp" type="range" min="0" max="1" step="0.05" value="0.2" oninput="$('cfg-tv').textContent=this.value"><span class="rval" id="cfg-tv">0.2</span></div></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Tokens max</div></div><div class="cctrl"><input class="cinput" id="cfg-tokens" type="number" min="1024" max="65536" step="1024" value="8192"></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Tentatives max</div><div class="cdsc2">Nombre maximum de cycles codeur/reviewer</div></div><div class="cctrl"><input class="cinput" id="cfg-retries" type="number" min="1" max="15" value="5"></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Température</div><div class="cdsc2">0 = déterministe, 1 = créatif. 0.2 recommandé pour du code.</div></div><div class="cctrl"><div class="rwrap"><input class="rng" id="cfg-temp" type="range" min="0" max="1" step="0.05" value="0.2" oninput="$('cfg-tv').textContent=this.value"><span class="rval" id="cfg-tv">0.2</span></div></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Tokens max</div><div class="cdsc2">Longueur max de la réponse du codeur</div></div><div class="cctrl"><input class="cinput" id="cfg-tokens" type="number" min="1024" max="65536" step="1024" value="8192"></div></div>
     </div>
     <div class="cgroup"><div class="cgtitle">Sandbox & Ollama</div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Timeout commande</div></div><div class="cctrl"><input class="cinput" id="cfg-cmdto" type="number" min="5" max="600" value="60"><span class="cunit">sec</span></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Taille max fichier</div></div><div class="cctrl"><input class="cinput" id="cfg-maxf" type="number" min="64" max="10240" step="64" value="2048"><span class="cunit">KB</span></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Timeout IA</div></div><div class="cctrl"><input class="cinput" id="cfg-ollto" type="number" min="30" max="900" value="300"><span class="cunit">sec</span></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Timeout commande</div><div class="cdsc2">Durée max d'exécution d'une commande shell</div></div><div class="cctrl"><input class="cinput" id="cfg-cmdto" type="number" min="5" max="600" value="60"><span class="cunit">sec</span></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Taille max fichier</div><div class="cdsc2">Limite par fichier généré</div></div><div class="cctrl"><input class="cinput" id="cfg-maxf" type="number" min="64" max="10240" step="64" value="2048"><span class="cunit">KB</span></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Timeout IA (Ollama)</div><div class="cdsc2">Durée max pour qu'un modèle réponde</div></div><div class="cctrl"><input class="cinput" id="cfg-ollto" type="number" min="30" max="900" value="300"><span class="cunit">sec</span></div></div>
     </div>
     <div class="saverow"><span class="svfb" id="svfb">✔ Sauvegardé</span><button class="btn-rst" onclick="loadCfg()">↺ Reset</button><button class="btn-sv" onclick="saveCfg()">💾 Sauvegarder</button></div>
   </div>
 </div>
 
-<div id="fmodal"><div id="fmi"><div id="fmh"><span id="fmt">—</span><button onclick="closeFM()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button></div><div id="fmc"></div></div></div>
+<div id="fmodal"><div id="fmi">
+  <div id="fmh"><span id="fmt">—</span><button onclick="closeFM()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button></div>
+  <div id="fmc"></div>
+</div></div>
 
 <script>
 const $=id=>document.getElementById(id);
-const output=$('output'),taskIn=$('task-input'),sendBtn=$('send-btn'),sDot=$('status-dot'),fList=$('file-list');
+const output=$('output'),taskIn=$('task-input'),sendBtn=$('send-btn'),cancelBtn=$('cancel-btn'),sDot=$('status-dot'),fList=$('file-list');
 let ws,installed=[],catalog=[],curTag='',wsEnabled=false;
 
+// ── Utilitaires ──────────────────────────────────────────────────
 function now(ts){const d=ts?new Date(ts*1000):new Date();return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+
 function log(text,cls='system',ts){
-  const d=document.createElement('div');d.className='line '+cls;
+  const d=document.createElement('div');
+  d.className='line '+cls;
   d.innerHTML=`<span class="ts">${now(ts)}</span><span class="msg"></span>`;
   d.querySelector('.msg').textContent=text;
-  output.appendChild(d);output.scrollTop=1e9;
+  output.appendChild(d);
+  output.scrollTop=1e9;
 }
 
-function switchTab(n){['agent','models','config'].forEach((t,i)=>{document.querySelectorAll('.tab')[i].classList.toggle('active',t===n);$(t+'-panel').classList.toggle('active',t===n)});if(n==='models'){loadInst();loadCat();}if(n==='config')loadCfg();}
+function switchTab(n){
+  ['agent','models','config'].forEach((t,i)=>{
+    document.querySelectorAll('.tab')[i].classList.toggle('active',t===n);
+    $(t+'-panel').classList.toggle('active',t===n);
+  });
+  if(n==='models'){loadInst();loadCat();}
+  if(n==='config')loadCfg();
+}
 
+// ── Status & header ──────────────────────────────────────────────
 async function fetchStatus(){
-  try{const r=await fetch('/api/status'),d=await r.json();sDot.classList.toggle('ok',d.ollama);installed=d.models||[];wsEnabled=d.web_search_enabled||false;renderHdr(d.active_model||{});renderFiles(d.files||[]);
-    log(d.ollama?'✔ Ollama en ligne — prêt':'⚠ Ollama hors ligne — lancez: ollama serve',d.ollama?'ok':'err');
-    if(d.ollama&&!installed.length)log('⚠ Aucun modèle installé → onglet Modèles','err');
-    if(wsEnabled)log('🌐 Recherche web activée','search');
+  try{
+    const r=await fetch('/api/status'), d=await r.json();
+    sDot.classList.toggle('ok',d.ollama);
+    installed=d.models||[];
+    wsEnabled=d.web_search_enabled||false;
+    renderHdr(d.active_model||{}, d.task_running||false);
+    renderFiles(d.files||[]);
+    log(d.ollama?'✔ Ollama en ligne — prêt':'⚠ Ollama hors ligne — lancez: ollama serve', d.ollama?'ok':'err');
+    if(d.ollama&&!installed.length) log('⚠ Aucun modèle installé → onglet Modèles','err');
+    if(wsEnabled) log('🌐 Recherche web activée','search');
   }catch{log('Backend injoignable.','err');}
 }
-function renderHdr(am){const el=$('hmodels');el.innerHTML='';['Planner','Coder','Reviewer'].forEach(r=>{const c=document.createElement('div');c.className='hchip';c.innerHTML=`${r}: <span>${am[r.toLowerCase()]||'—'}</span>`;el.appendChild(c);});const w=document.createElement('div');w.className='hchip'+(wsEnabled?' ws-on':'');w.innerHTML=`🌐 <span>${wsEnabled?'ON':'OFF'}</span>`;el.appendChild(w);}
-function renderFiles(f){fList.innerHTML='';if(!f.length){fList.innerHTML='<div class="empty">Aucun fichier</div>';return;}f.forEach(n=>{const d=document.createElement('div');d.className='fitem';d.textContent=n;d.onclick=()=>openF(n);fList.appendChild(d);});}
-async function refreshF(){try{renderFiles((await(await fetch('/api/files')).json()).files||[]);}catch{}}
 
-function connectWS(){const p=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${p}://${location.host}/ws`);ws.onmessage=e=>onMsg(JSON.parse(e.data));ws.onclose=()=>setTimeout(connectWS,2000);}
+function renderHdr(am, running){
+  const el=$('hmodels'); el.innerHTML='';
+  ['Planner','Coder','Reviewer'].forEach(r=>{
+    const c=document.createElement('div');
+    c.className='hchip';
+    c.innerHTML=`${r}: <span>${am[r.toLowerCase()]||'—'}</span>`;
+    el.appendChild(c);
+  });
+  const w=document.createElement('div');
+  w.className='hchip'+(wsEnabled?' ws-on':'');
+  w.innerHTML=`🌐 <span>${wsEnabled?'ON':'OFF'}</span>`;
+  el.appendChild(w);
+  if(running){
+    const r=document.createElement('div');
+    r.className='hchip running';
+    r.innerHTML=`<span>⚙ en cours…</span>`;
+    el.appendChild(r);
+  }
+}
 
-// ── Streaming state ──────────────────────────────────────────────
-let _streamEl = null;   // div de la ligne en cours de stream
-let _streamBuf = '';    // texte accumulé
+function renderFiles(f){
+  fList.innerHTML='';
+  if(!f.length){fList.innerHTML='<div class="empty">Aucun fichier</div>';return;}
+  f.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='fitem'; d.textContent=n;
+    d.onclick=()=>openF(n);
+    fList.appendChild(d);
+  });
+}
+
+async function refreshF(){
+  try{renderFiles((await(await fetch('/api/files')).json()).files||[]);}catch{}
+}
+
+// ── WebSocket ────────────────────────────────────────────────────
+function connectWS(){
+  const p=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${p}://${location.host}/ws`);
+  ws.onmessage=e=>onMsg(JSON.parse(e.data));
+  ws.onclose=()=>setTimeout(connectWS,2000);
+  ws.onerror=()=>{};
+}
+
+// ── Streaming ────────────────────────────────────────────────────
+let _streamEl=null, _streamBuf='';
 
 function _streamCreate(){
   _streamBuf='';
@@ -138,69 +222,266 @@ function _streamCreate(){
   output.appendChild(_streamEl);
   output.scrollTop=1e9;
 }
+
 function _streamAppend(token){
   if(!_streamEl) _streamCreate();
   _streamBuf+=token;
-  _streamEl.querySelector('.stream-msg').textContent=_streamBuf.slice(-320);
+  // Afficher les 400 derniers chars pour éviter un DOM trop lourd
+  _streamEl.querySelector('.stream-msg').textContent=_streamBuf.slice(-400);
   output.scrollTop=1e9;
 }
+
 function _streamClose(){
   if(_streamEl){_streamEl.classList.remove('stream-live');_streamEl=null;}
   _streamBuf='';
 }
 
+// ── Messages WS ──────────────────────────────────────────────────
 function onMsg(m){
   const ts=m.ts;
-  // Live logs from orchestrator
+  if(m.type==='ping'){ws.send(JSON.stringify({type:'pong'}));return;}
   if(m.type==='log'){log(m.msg,m.level||'system',ts);return;}
   if(m.type==='phase'){
     _streamClose();
     const cls=m.state==='start'?'phase start':'phase done'+(m.msg?.includes('REJETÉ')?' rejected':'');
     log(m.msg,cls,ts);return;
   }
-  // Streaming tokens du codeur
   if(m.type==='stream_start'){_streamCreate();return;}
   if(m.type==='stream_token'){_streamAppend(m.token);return;}
   if(m.type==='stream_end'){_streamClose();return;}
-  // Task lifecycle
-  if(m.type==='started'){log(`▶ Tâche: ${m.task}`,'task',ts);sendBtn.disabled=true;sendBtn.innerHTML='<span class="spinner"></span> En cours…';}
-  if(m.type==='result'){_streamClose();sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';refreshF();}
-  if(m.type==='error'){_streamClose();log(`Erreur: ${m.message}`,'err',ts);sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';}
-  // Model pulls
-  if(m.type==='pull_start')log(`⬇ ${m.model}…`,'info',ts);
-  if(m.type==='pull_progress'){const p=m.data?.completed&&m.data?.total?Math.round(m.data.completed/m.data.total*100):null;if(p!==null)updPull(m.model,p,'dl');}
+
+  if(m.type==='started'){
+    log(`▶ Tâche: ${m.task}`,'task',ts);
+    setRunning(true);
+  }
+  if(m.type==='result'){
+    _streamClose(); setRunning(false); refreshF();
+  }
+  if(m.type==='error'){
+    _streamClose(); log(`Erreur: ${m.message}`,'err',ts); setRunning(false);
+  }
+  if(m.type==='pull_start') log(`⬇ ${m.model}…`,'info',ts);
+  if(m.type==='pull_progress'){
+    const p=m.data?.completed&&m.data?.total?Math.round(m.data.completed/m.data.total*100):null;
+    if(p!==null) updPull(m.model,p,'dl');
+  }
   if(m.type==='pull_done'){log(`✔ ${m.model} installé !`,'ok',ts);updPull(m.model,100,'ok');loadInst();}
-  if(m.type==='pull_error')log(`✘ ${m.model}: ${m.message}`,'err',ts);
+  if(m.type==='pull_error') log(`✘ ${m.model}: ${m.message}`,'err',ts);
   if(m.type==='model_deleted'){log('✕ Supprimé.','err',ts);loadInst();}
 }
-function updPull(model,pct,st){const s='p'+model.replace(/[^a-z0-9]/gi,'_');const bar=$('bar_'+s),fill=$('fill_'+s),btn=$('btn_'+s);if(bar)bar.classList.add('on');if(fill)fill.style.width=pct+'%';if(btn){if(st==='ok'){btn.textContent='✔';btn.classList.add('done');btn.disabled=true;}else{btn.textContent=pct+'%…';btn.disabled=true;}}}
 
-async function sendTask(){const t=taskIn.value.trim();if(!t||sendBtn.disabled)return;taskIn.value='';if(!installed.length){log('⚠ Aucun modèle installé.','err');return;}if(ws?.readyState===1)ws.send(JSON.stringify({type:'task',task:t}));else await fetch('/api/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:t})});}
-sendBtn.onclick=sendTask;taskIn.onkeydown=e=>{if(e.key==='Enter')sendTask();};
+function setRunning(running){
+  sendBtn.disabled=running;
+  sendBtn.textContent=running?'…':'▶ Lancer';
+  cancelBtn.classList.toggle('visible', running);
+}
 
-// ── Models ──
-async function loadInst(){const el=$('ilist');try{const[lr,sr]=await Promise.all([fetch('/api/models/local'),fetch('/api/status')]);const{models,count}=await lr.json(),{active_model:am}=await sr.json();installed=(models||[]).map(m=>m.name||m);$('inst-cnt').textContent=count||0;renderHdr(am||{});if(!models?.length){el.innerHTML='<div class="empty">Aucun modèle installé.</div>';return;}el.innerHTML='';models.forEach(m=>{const n=m.name||m,isP=n===am?.planner,isC=n===am?.coder,isR=n===am?.reviewer;const d=document.createElement('div');d.className='icard'+(isC?' act':'');d.innerHTML=`<div class="iinfo"><div class="iname">${n}${isC?' <span class="badge">coder</span>':''}${isP&&!isC?' <span class="badge">planner</span>':''}${isR&&!isC&&!isP?' <span class="badge">reviewer</span>':''}</div><div class="imeta">${m.size||''} ${m.params?'· '+m.params:''}</div></div><div class="ibtns"><button class="btn-s btn-role${isP?' on':''}" onclick="setRole('${n}','planner')">🧠</button><button class="btn-s btn-role${isC?' on':''}" onclick="setRole('${n}','coder')">💻</button><button class="btn-s btn-role${isR?' on':''}" onclick="setRole('${n}','reviewer')">🔍</button><button class="btn-s btn-x" onclick="delModel('${n}')">✕</button></div>`;el.appendChild(d);});}catch(e){el.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}}
-async function setRole(m,r){await fetch('/api/models/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m,role:r})});log(`⬡ ${r} → ${m}`,'info');await loadInst();popSels();}
-async function delModel(m){if(!confirm(`Supprimer "${m}" ?`))return;try{await fetch('/api/models/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});log(`✕ ${m}`,'err');await loadInst();}catch(e){log(`✘ ${e.message}`,'err');}}
-async function loadCat(){const g=$('cgrid');g.innerHTML='<div class="empty"><span class="spinner"></span></div>';try{catalog=(await(await fetch('/api/models/catalog')).json()).models||[];renderCat();}catch(e){g.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}}
-function filt(t,b){curTag=t;document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderCat();}
-function renderCat(){const g=$('cgrid');let l=catalog;if(curTag)l=l.filter(m=>m.cat===curTag);if(!l.length){g.innerHTML='<div class="empty">Aucun.</div>';return;}g.innerHTML='';l.forEach(m=>{const s='p'+m.name.replace(/[^a-z0-9]/gi,'_');const c=document.createElement('div');c.className='ccard'+(m.installed?' inst':'');c.innerHTML=`<div class="cname">${m.name}${m.recommended?'<span class="crec">★</span>':''}</div><div class="cmeta"><span class="csize">${m.params}</span><span class="csize">${m.size}</span><span class="ctag ${m.cat}">${m.cat}</span><span class="csize">VRAM:${m.vram}</span></div><div class="cdesc">${m.desc}</div><div class="cspeed">${m.speed||''}</div><div class="cacts"><button class="btn-inst${m.installed?' done':''}" id="btn_${s}" onclick="pullM('${m.name}')" ${m.installed?'disabled':''}>${m.installed?'✔':'⬇ Installer'}</button></div><div class="pbar" id="bar_${s}"><div class="pfill" id="fill_${s}"></div></div>`;g.appendChild(c);});}
+// ── Tâches ───────────────────────────────────────────────────────
+async function sendTask(){
+  const t=taskIn.value.trim();
+  if(!t||sendBtn.disabled)return;
+  taskIn.value='';
+  if(!installed.length){log('⚠ Aucun modèle installé.','err');return;}
+  if(ws?.readyState===1) ws.send(JSON.stringify({type:'task',task:t}));
+  else await fetch('/api/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:t})});
+}
+
+async function cancelTask(){
+  try{await fetch('/api/task/cancel',{method:'POST'});}catch{}
+}
+
+sendBtn.onclick=sendTask;
+taskIn.onkeydown=e=>{if(e.key==='Enter')sendTask();};
+
+// ── Modèles ──────────────────────────────────────────────────────
+async function loadInst(){
+  const el=$('ilist');
+  try{
+    const[lr,sr]=await Promise.all([fetch('/api/models/local'),fetch('/api/status')]);
+    const{models,count}=await lr.json(), {active_model:am}=await sr.json();
+    installed=(models||[]).map(m=>m.name||m);
+    $('inst-cnt').textContent=count||0;
+    renderHdr(am||{}, false);
+    if(!models?.length){el.innerHTML='<div class="empty">Aucun modèle installé.</div>';return;}
+    el.innerHTML='';
+    models.forEach(m=>{
+      const n=m.name||m, isP=n===am?.planner, isC=n===am?.coder, isR=n===am?.reviewer;
+      const d=document.createElement('div');
+      d.className='icard'+(isC?' act':'');
+      d.innerHTML=`<div class="iinfo">
+        <div class="iname">${n}
+          ${isC?'<span class="badge">coder</span>':''}
+          ${isP&&!isC?'<span class="badge">planner</span>':''}
+          ${isR&&!isC&&!isP?'<span class="badge">reviewer</span>':''}
+        </div>
+        <div class="imeta">${m.size||''} ${m.params?'· '+m.params:''}</div>
+      </div>
+      <div class="ibtns">
+        <button class="btn-s btn-role${isP?' on':''}" onclick="setRole('${n}','planner')" title="Définir comme Planificateur">🧠</button>
+        <button class="btn-s btn-role${isC?' on':''}" onclick="setRole('${n}','coder')" title="Définir comme Codeur">💻</button>
+        <button class="btn-s btn-role${isR?' on':''}" onclick="setRole('${n}','reviewer')" title="Définir comme Reviewer">🔍</button>
+        <button class="btn-s btn-x" onclick="delModel('${n}')" title="Supprimer">✕</button>
+      </div>`;
+      el.appendChild(d);
+    });
+  }catch(e){el.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}
+}
+
+async function setRole(m,r){
+  await fetch('/api/models/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m,role:r})});
+  log(`⬡ ${r} → ${m}`,'info');
+  await loadInst(); popSels();
+}
+
+async function delModel(m){
+  if(!confirm(`Supprimer "${m}" ?`))return;
+  try{
+    await fetch('/api/models/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});
+    log(`✕ ${m}`,'err'); await loadInst();
+  }catch(e){log(`✘ ${e.message}`,'err');}
+}
+
+async function loadCat(){
+  const g=$('cgrid');
+  g.innerHTML='<div class="empty"><span class="spinner"></span></div>';
+  try{
+    catalog=(await(await fetch('/api/models/catalog')).json()).models||[];
+    renderCat();
+  }catch(e){g.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}
+}
+
+function filt(t,b){
+  curTag=t;
+  document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); renderCat();
+}
+
+function renderCat(){
+  const g=$('cgrid');
+  let l=catalog;
+  if(curTag) l=l.filter(m=>m.cat===curTag);
+  if(!l.length){g.innerHTML='<div class="empty">Aucun.</div>';return;}
+  g.innerHTML='';
+  l.forEach(m=>{
+    const s='p'+m.name.replace(/[^a-z0-9]/gi,'_');
+    const c=document.createElement('div');
+    c.className='ccard'+(m.installed?' inst':'');
+    c.innerHTML=`<div class="cname">${m.name}${m.recommended?'<span class="crec">★</span>':''}</div>
+    <div class="cmeta"><span class="csize">${m.params}</span><span class="csize">${m.size}</span><span class="ctag ${m.cat}">${m.cat}</span><span class="csize">VRAM:${m.vram}</span></div>
+    <div class="cdesc">${m.desc}</div>
+    <div class="cspeed">${m.speed||''}</div>
+    <div class="cacts"><button class="btn-inst${m.installed?' done':''}" id="btn_${s}" onclick="pullM('${m.name}')" ${m.installed?'disabled':''}>${m.installed?'✔ Installé':'⬇ Installer'}</button></div>
+    <div class="pbar" id="bar_${s}"><div class="pfill" id="fill_${s}"></div></div>`;
+    g.appendChild(c);
+  });
+}
+
+function updPull(model,pct,st){
+  const s='p'+model.replace(/[^a-z0-9]/gi,'_');
+  const bar=$('bar_'+s),fill=$('fill_'+s),btn=$('btn_'+s);
+  if(bar)bar.classList.add('on');
+  if(fill)fill.style.width=pct+'%';
+  if(btn){
+    if(st==='ok'){btn.textContent='✔ Installé';btn.classList.add('done');btn.disabled=true;}
+    else{btn.textContent=pct+'%…';btn.disabled=true;}
+  }
+}
+
 async function pullM(m){switchTab('agent');await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});}
-async function pullCustom(){const m=$('custom-in').value.trim();if(!m)return;$('custom-in').value='';switchTab('agent');await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});}
+async function pullCustom(){
+  const m=$('custom-in').value.trim();
+  if(!m)return;
+  $('custom-in').value='';
+  switchTab('agent');
+  await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});
+}
 
-// ── Config ──
-function toggleWS(cb){wsEnabled=cb.checked;$('ws-lbl').textContent=wsEnabled?'ON':'OFF';$('ws-lbl').classList.toggle('on',wsEnabled);}
-async function loadCfg(){try{const[cr,mr]=await Promise.all([fetch('/api/config'),fetch('/api/models/local')]);const cfg=await cr.json(),{models}=await mr.json();const n=(models||[]).map(m=>m.name||m);$('cfg-retries').value=cfg.agents?.max_retries??5;const t=cfg.agents?.temperature??0.2;$('cfg-temp').value=t;$('cfg-tv').textContent=t;$('cfg-tokens').value=cfg.agents?.max_tokens??8192;$('cfg-cmdto').value=cfg.sandbox?.command_timeout??60;$('cfg-maxf').value=cfg.sandbox?.max_file_size_kb??2048;$('cfg-ollto').value=cfg.ollama?.timeout??300;const wOn=cfg.web_search?.enabled||false;$('cfg-ws').checked=wOn;$('ws-lbl').textContent=wOn?'ON':'OFF';$('ws-lbl').classList.toggle('on',wOn);wsEnabled=wOn;popSel('cfg-planner',n,cfg.models?.planner);popSel('cfg-coder',n,cfg.models?.coder);popSel('cfg-reviewer',n,cfg.models?.reviewer);}catch(e){console.error(e);}}
-function popSel(id,ms,sel){const s=$(id);s.innerHTML='';if(!ms.length){s.innerHTML='<option value="">—</option>';return;}ms.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===sel)o.selected=true;s.appendChild(o);});}
-function popSels(){fetch('/api/models/local').then(r=>r.json()).then(({models})=>{const n=(models||[]).map(m=>m.name||m);fetch('/api/config').then(r=>r.json()).then(c=>{popSel('cfg-planner',n,c.models?.planner);popSel('cfg-coder',n,c.models?.coder);popSel('cfg-reviewer',n,c.models?.reviewer);});});}
-async function saveCfg(){const c={agents:{max_retries:+$('cfg-retries').value,temperature:+$('cfg-temp').value,max_tokens:+$('cfg-tokens').value},sandbox:{command_timeout:+$('cfg-cmdto').value,max_file_size_kb:+$('cfg-maxf').value},ollama:{timeout:+$('cfg-ollto').value},models:{planner:$('cfg-planner').value,coder:$('cfg-coder').value,reviewer:$('cfg-reviewer').value},web_search:{enabled:$('cfg-ws').checked}};try{const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});const d=await r.json();if(d.status==='ok'){const f=$('svfb');f.classList.add('show');setTimeout(()=>f.classList.remove('show'),2500);wsEnabled=c.web_search.enabled;renderHdr(c.models);log('⚙ Config sauvegardée.','info');}}catch(e){log(`✘ ${e.message}`,'err');}}
+// ── Config ───────────────────────────────────────────────────────
+function toggleWS(cb){
+  wsEnabled=cb.checked;
+  $('ws-lbl').textContent=wsEnabled?'ON':'OFF';
+  $('ws-lbl').classList.toggle('on',wsEnabled);
+}
 
-async function openF(p){try{const r=await fetch(`/api/file?path=${encodeURIComponent(p)}`),d=await r.json();$('fmt').textContent=p;$('fmc').textContent=d.content||d.error||'';$('fmodal').classList.add('open');}catch{}}
-function closeFM(){$('fmodal').classList.remove('open');}$('fmodal').onclick=e=>{if(e.target===e.currentTarget)closeFM();};
+async function loadCfg(){
+  try{
+    const[cr,mr]=await Promise.all([fetch('/api/config'),fetch('/api/models/local')]);
+    const cfg=await cr.json(), {models}=await mr.json();
+    const n=(models||[]).map(m=>m.name||m);
+    $('cfg-retries').value=cfg.agents?.max_retries??5;
+    const t=cfg.agents?.temperature??0.2;
+    $('cfg-temp').value=t; $('cfg-tv').textContent=t;
+    $('cfg-tokens').value=cfg.agents?.max_tokens??8192;
+    $('cfg-cmdto').value=cfg.sandbox?.command_timeout??60;
+    $('cfg-maxf').value=cfg.sandbox?.max_file_size_kb??2048;
+    $('cfg-ollto').value=cfg.ollama?.timeout??300;
+    const wOn=cfg.web_search?.enabled||false;
+    $('cfg-ws').checked=wOn; $('ws-lbl').textContent=wOn?'ON':'OFF';
+    $('ws-lbl').classList.toggle('on',wOn); wsEnabled=wOn;
+    popSel('cfg-planner',n,cfg.models?.planner);
+    popSel('cfg-coder',n,cfg.models?.coder);
+    popSel('cfg-reviewer',n,cfg.models?.reviewer);
+  }catch(e){console.error(e);}
+}
 
+function popSel(id,ms,sel){
+  const s=$(id); s.innerHTML='';
+  if(!ms.length){s.innerHTML='<option value="">— aucun modèle installé —</option>';return;}
+  ms.forEach(m=>{
+    const o=document.createElement('option');
+    o.value=m; o.textContent=m;
+    if(m===sel)o.selected=true;
+    s.appendChild(o);
+  });
+}
+
+function popSels(){
+  fetch('/api/models/local').then(r=>r.json()).then(({models})=>{
+    const n=(models||[]).map(m=>m.name||m);
+    fetch('/api/config').then(r=>r.json()).then(c=>{
+      popSel('cfg-planner',n,c.models?.planner);
+      popSel('cfg-coder',n,c.models?.coder);
+      popSel('cfg-reviewer',n,c.models?.reviewer);
+    });
+  });
+}
+
+async function saveCfg(){
+  const c={
+    agents:{max_retries:+$('cfg-retries').value,temperature:+$('cfg-temp').value,max_tokens:+$('cfg-tokens').value},
+    sandbox:{command_timeout:+$('cfg-cmdto').value,max_file_size_kb:+$('cfg-maxf').value},
+    ollama:{timeout:+$('cfg-ollto').value},
+    models:{planner:$('cfg-planner').value,coder:$('cfg-coder').value,reviewer:$('cfg-reviewer').value},
+    web_search:{enabled:$('cfg-ws').checked}
+  };
+  try{
+    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
+    const d=await r.json();
+    if(d.status==='ok'){
+      const f=$('svfb');f.classList.add('show');setTimeout(()=>f.classList.remove('show'),2500);
+      wsEnabled=c.web_search.enabled;
+      renderHdr(c.models, false);
+      log('⚙ Config sauvegardée et appliquée.','info');
+    }
+  }catch(e){log(`✘ ${e.message}`,'err');}
+}
+
+// ── Viewer fichier ───────────────────────────────────────────────
+async function openF(p){
+  try{
+    const r=await fetch(`/api/file?path=${encodeURIComponent(p)}`), d=await r.json();
+    $('fmt').textContent=p; $('fmc').textContent=d.content||d.error||'';
+    $('fmodal').classList.add('open');
+  }catch{}
+}
+function closeFM(){$('fmodal').classList.remove('open');}
+$('fmodal').onclick=e=>{if(e.target===e.currentTarget)closeFM();};
+
+// ── Init ─────────────────────────────────────────────────────────
 log('Système multi-agent local — workspace: ~/ai-workspace','system');
 log('Connexion à Ollama…','system');
-fetchStatus();connectWS();
+fetchStatus();
+connectWS();
 </script>
 </body>
 </html>

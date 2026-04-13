@@ -3,6 +3,9 @@ ollama:
   timeout: 300
 
 models:
+  # deepseek-r1:7b est meilleur pour la planification (raisonnement)
+  # qwen2.5-coder:7b reste le meilleur pour le code
+  # Si tu n'as qu'un seul modèle installé, mets le même partout
   planner:  "qwen2.5-coder:7b"
   coder:    "qwen2.5-coder:7b"
   reviewer: "qwen2.5-coder:7b"
@@ -23,3 +26,16 @@ web_search:
 web:
   host: "127.0.0.1"
   port: 8080
+
+# Configurations recommandées par VRAM disponible :
+#
+# 4 GB  → planner: deepseek-r1:1.5b  | coder: qwen2.5-coder:3b   | reviewer: qwen3:4b
+# 6 GB  → planner: deepseek-r1:7b    | coder: qwen2.5-coder:7b   | reviewer: qwen2.5-coder:7b
+# 8 GB  → planner: deepseek-r1:7b    | coder: qwen2.5-coder:7b   | reviewer: qwen3:8b
+# 12 GB → planner: deepseek-r1:14b   | coder: qwen2.5-coder:14b  | reviewer: qwen3:14b
+# 24 GB → planner: deepseek-r1:32b   | coder: qwen2.5-coder:32b  | reviewer: qwen3:30b
+# CPU   → planner: deepseek-r1:1.5b  | coder: qwen2.5-coder:1.5b | reviewer: qwen3:1.7b
+#
+# ATTENTION : si planner ≠ coder ≠ reviewer, Ollama devra décharger/recharger
+# le modèle à chaque changement d'agent (~5-15s de swap selon la VRAM).
+# Utiliser le même modèle pour tous les rôles évite ces swaps.
