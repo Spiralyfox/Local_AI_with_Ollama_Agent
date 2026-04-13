@@ -20,9 +20,12 @@ WORKSPACE = Path.home() / "ai-workspace"
 OLLAMA_URL = "http://localhost:11434"
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "config.yaml"
 
-app = FastAPI(title="Local AI System", version="5.0")
+app = FastAPI(title="Local AI System", version="4.1")
 orchestrator = Orchestrator(WORKSPACE)
 ollama = OllamaClient()
+
+# Verrou tâche unique — empêche deux exécutions simultanées sur le même orchestrateur
+_task_lock = asyncio.Lock()
 
 # ── Catalogue hardcodé ────────────────────────────────────────────
 HARDCODED_CATALOG = [
@@ -112,6 +115,12 @@ manager = ConnectionManager()
 
 # Wire orchestrator broadcasts
 orchestrator.set_broadcast(manager.broadcast)
+
+@app.on_event("shutdown")
+async def _shutdown():
+    """Ferme proprement le client httpx Ollama au shutdown."""
+    await orchestrator.client.aclose()
+    await ollama.aclose()
 
 # ── API Status ────────────────────────────────────────────────────
 @app.get("/api/status")
@@ -242,6 +251,8 @@ def _apply_config(cfg: dict):
 async def run_task(body: dict):
     task = body.get("task", "").strip()
     if not task: return JSONResponse({"error": "task vide"}, status_code=400)
+    if _task_lock.locked():
+        return JSONResponse({"error": "Une tâche est déjà en cours. Attends qu'elle se termine."}, status_code=409)
     asyncio.create_task(_run_and_broadcast(task))
     return {"status": "started", "task": task}
 
@@ -274,18 +285,23 @@ async def websocket_endpoint(ws: WebSocket):
             msg = json.loads(data)
             if msg.get("type") == "task":
                 task = msg.get("task", "").strip()
-                if task: asyncio.create_task(_run_and_broadcast(task))
+                if task:
+                    if _task_lock.locked():
+                        await ws.send_json({"type": "error", "message": "Une tâche est déjà en cours."})
+                    else:
+                        asyncio.create_task(_run_and_broadcast(task))
     except WebSocketDisconnect:
         manager.disconnect(ws)
 
 # ── Helpers ───────────────────────────────────────────────────────
 async def _run_and_broadcast(task: str):
-    await manager.broadcast({"type": "started", "task": task})
-    try:
-        result = await orchestrator.run(task)
-        await manager.broadcast({"type": "result", "data": result})
-    except Exception as e:
-        await manager.broadcast({"type": "error", "message": str(e)})
+    async with _task_lock:
+        await manager.broadcast({"type": "started", "task": task})
+        try:
+            result = await orchestrator.run(task)
+            await manager.broadcast({"type": "result", "data": result})
+        except Exception as e:
+            await manager.broadcast({"type": "error", "message": str(e)})
 
 async def _pull_and_broadcast(model: str):
     await manager.broadcast({"type": "pull_start", "model": model})

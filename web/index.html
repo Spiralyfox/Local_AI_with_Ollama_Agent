@@ -26,6 +26,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 .line.phase.start .msg{color:var(--blue)}.line.phase.done .msg{color:var(--green)}
 .line.phase.done.rejected .msg{color:var(--red)}
 .line.separator{border-top:1px solid var(--border2);margin:6px 0 4px;padding:0;height:0;display:block}
+.line.stream-live .msg{color:var(--muted);opacity:.75;font-style:italic;white-space:pre-wrap;word-break:break-all}
+.line.stream-live{border-left:2px solid var(--blue);padding-left:6px;opacity:.85}
 #input-bar{border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px;background:var(--surface);flex-shrink:0;align-items:center}
 #task-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;min-width:0}#task-input:focus{border-color:var(--blue)}#task-input::placeholder{color:var(--muted)}
 .sbtn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0}.sbtn:hover{background:#2ea043}.sbtn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
@@ -124,18 +126,46 @@ async function refreshF(){try{renderFiles((await(await fetch('/api/files')).json
 
 function connectWS(){const p=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${p}://${location.host}/ws`);ws.onmessage=e=>onMsg(JSON.parse(e.data));ws.onclose=()=>setTimeout(connectWS,2000);}
 
+// ── Streaming state ──────────────────────────────────────────────
+let _streamEl = null;   // div de la ligne en cours de stream
+let _streamBuf = '';    // texte accumulé
+
+function _streamCreate(){
+  _streamBuf='';
+  _streamEl=document.createElement('div');
+  _streamEl.className='line stream-live';
+  _streamEl.innerHTML='<span class="ts">'+now()+'</span><span class="msg stream-msg"></span>';
+  output.appendChild(_streamEl);
+  output.scrollTop=1e9;
+}
+function _streamAppend(token){
+  if(!_streamEl) _streamCreate();
+  _streamBuf+=token;
+  _streamEl.querySelector('.stream-msg').textContent=_streamBuf.slice(-320);
+  output.scrollTop=1e9;
+}
+function _streamClose(){
+  if(_streamEl){_streamEl.classList.remove('stream-live');_streamEl=null;}
+  _streamBuf='';
+}
+
 function onMsg(m){
   const ts=m.ts;
   // Live logs from orchestrator
   if(m.type==='log'){log(m.msg,m.level||'system',ts);return;}
   if(m.type==='phase'){
+    _streamClose();
     const cls=m.state==='start'?'phase start':'phase done'+(m.msg?.includes('REJETÉ')?' rejected':'');
     log(m.msg,cls,ts);return;
   }
+  // Streaming tokens du codeur
+  if(m.type==='stream_start'){_streamCreate();return;}
+  if(m.type==='stream_token'){_streamAppend(m.token);return;}
+  if(m.type==='stream_end'){_streamClose();return;}
   // Task lifecycle
   if(m.type==='started'){log(`▶ Tâche: ${m.task}`,'task',ts);sendBtn.disabled=true;sendBtn.innerHTML='<span class="spinner"></span> En cours…';}
-  if(m.type==='result'){sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';refreshF();}
-  if(m.type==='error'){log(`Erreur: ${m.message}`,'err',ts);sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';}
+  if(m.type==='result'){_streamClose();sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';refreshF();}
+  if(m.type==='error'){_streamClose();log(`Erreur: ${m.message}`,'err',ts);sendBtn.disabled=false;sendBtn.textContent='▶ Lancer';}
   // Model pulls
   if(m.type==='pull_start')log(`⬇ ${m.model}…`,'info',ts);
   if(m.type==='pull_progress'){const p=m.data?.completed&&m.data?.total?Math.round(m.data.completed/m.data.total*100):null;if(p!==null)updPull(m.model,p,'dl');}

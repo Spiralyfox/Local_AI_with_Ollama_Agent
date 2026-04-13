@@ -1,6 +1,9 @@
 """
-Orchestrator v4 — multi-agent avec logs détaillés en temps réel.
-Chaque phase émet des événements horodatés vers le WebSocket.
+Orchestrator v4.1 — multi-agent avec logs détaillés en temps réel.
+Corrections v4.1 :
+  - Streaming token par token sur le codeur (affichage live)
+  - Limite review étendue : 1500 → 4000 chars par fichier
+  - Emissions WebSocket typées pour le streaming frontend
 """
 import json
 import re
@@ -22,6 +25,9 @@ AGENTS = {
 MAX_RETRIES = 5
 WEB_SEARCH_ENABLED = False
 
+# Nb de tokens accumulés avant d'émettre un event stream (évite le flood WebSocket)
+STREAM_CHUNK_SIZE = 12
+
 
 class Orchestrator:
     def __init__(self, workspace: Path):
@@ -37,8 +43,10 @@ class Orchestrator:
     async def _emit(self, event: dict):
         if self._broadcast:
             event.setdefault("ts", time.time())
-            try: await self._broadcast(event)
-            except: pass
+            try:
+                await self._broadcast(event)
+            except Exception:
+                pass
 
     async def run(self, task: str) -> dict:
         t0 = time.time()
@@ -112,7 +120,7 @@ class Orchestrator:
             await self._emit({"type": "log", "level": "info",
                 "msg": f"{'═'*50}"})
 
-            # ── Codage ──
+            # ── Codage (streaming) ──
             await self._emit({"type": "phase", "phase": "coder", "state": "start",
                 "msg": f"💻 Codeur ({AGENTS['coder']}) génère le code…",
                 "attempt": attempt})
@@ -133,14 +141,12 @@ class Orchestrator:
             await self._emit({"type": "phase", "phase": "coder", "state": "done",
                 "msg": f"💻 Code généré en {code_dur:.1f}s — {n_files} fichiers, {n_cmds} commandes"})
 
-            # Log files created
             for f in code_result.get("files", []):
                 path = f.get("path", "?")
                 size = len(f.get("content", ""))
                 await self._emit({"type": "log", "level": "ok",
                     "msg": f"  ✎ {path} ({size} chars)"})
 
-            # Log command outputs
             if code_result.get("output"):
                 for line in code_result["output"].split("\n"):
                     if line.strip():
@@ -229,7 +235,24 @@ Fichiers : {files_txt}
 Tentative {attempt}/{MAX_RETRIES}
 {errors_block}"""
 
-        raw = await self.client.chat(AGENTS["coder"], prompt)
+        # Streaming : on accumule les tokens et on les émet par chunks au frontend
+        raw = ""
+        chunk_buf = ""
+        await self._emit({"type": "stream_start", "phase": "coder"})
+
+        async for token in self.client.chat_stream(AGENTS["coder"], prompt):
+            raw += token
+            chunk_buf += token
+            if len(chunk_buf) >= STREAM_CHUNK_SIZE:
+                await self._emit({"type": "stream_token", "phase": "coder", "token": chunk_buf})
+                chunk_buf = ""
+
+        # Flush du buffer restant
+        if chunk_buf:
+            await self._emit({"type": "stream_token", "phase": "coder", "token": chunk_buf})
+
+        await self._emit({"type": "stream_end", "phase": "coder"})
+
         data = self._parse_json(raw, {"files": [], "commands": []})
 
         output_log = []
@@ -247,8 +270,9 @@ Tentative {attempt}/{MAX_RETRIES}
         return data
 
     async def _review(self, task, code_result):
+        # Fix : limite étendue de 1500 à 4000 chars par fichier
         files_summary = "\n".join(
-            f"=== {f['path']} ===\n{f['content'][:1500]}" for f in code_result.get("files", []))
+            f"=== {f['path']} ===\n{f['content'][:4000]}" for f in code_result.get("files", []))
 
         prompt = f"""Tu es un reviewer senior exigeant.
 Réponds UNIQUEMENT en JSON : {{"approved": true/false, "reason": "...", "fix_plan": {{"steps": [...], "files_to_create": [...]}}}}
@@ -266,17 +290,23 @@ Fichiers :
     def _parse_json(self, raw, fallback):
         cleaned = re.sub(r'^```(?:json)?\s*\n?', '', raw.strip(), flags=re.MULTILINE)
         cleaned = re.sub(r'\n?```\s*$', '', cleaned.strip(), flags=re.MULTILINE)
-        try: return json.loads(cleaned)
-        except: pass
-        depth = 0; start = None
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            pass
+        depth = 0
+        start = None
         for i, c in enumerate(raw):
             if c == '{':
-                if depth == 0: start = i
+                if depth == 0:
+                    start = i
                 depth += 1
             elif c == '}':
                 depth -= 1
                 if depth == 0 and start is not None:
-                    try: return json.loads(raw[start:i+1])
-                    except: start = None
+                    try:
+                        return json.loads(raw[start:i+1])
+                    except Exception:
+                        start = None
         logger.warning(f"JSON parse failed. Raw[:200]: {raw[:200]}")
         return fallback
