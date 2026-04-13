@@ -1,3 +1,5 @@
+# ATTENTION : Projet abandonné, incomplet et avec des bugs, vous pouvez contribuer au projet si vous le souhaitez. Il existe d'autres outils plus performants.
+
 # Local AI System
 
 Assistant IA local multi-agent, 100 % offline, tournant sur Ollama.
@@ -141,13 +143,3 @@ local-ai-system/
 | Modèle trop lent | Modèle plus petit ou vérifier VRAM |
 | Erreur JSON du modèle | Augmenter max_tokens dans Config |
 | Projet trop gros | Augmenter tentatives et tokens dans Config |
-
-## Changelog
-
-### v4.1 — Streaming & stabilité
-- **Client httpx persistant** : `OllamaClient` maintient une connexion TCP réutilisée — fini la reconnexion à chaque appel LLM
-- **Streaming token par token** : le codeur affiche sa réponse en direct dans le terminal web (ligne live bordée en bleu)
-- **Limite review étendue** : le reviewer voit désormais jusqu'à 4000 chars par fichier (anciennement 1500) — meilleure qualité de relecture
-- **Protection tâche unique** : un verrou `asyncio.Lock` empêche deux tâches de tourner en parallèle sur le même orchestrateur ; retour HTTP 409 si déjà occupé
-- **Shutdown propre** : le client httpx est fermé correctement à l'arrêt de FastAPI (`@on_event("shutdown")`)
-
