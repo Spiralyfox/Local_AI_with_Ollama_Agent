@@ -5,49 +5,136 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Local AI System</title>
 <style>
-:root{--bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--surface3:#21262d;--border:#30363d;--border2:#21262d;--green:#39d353;--blue:#58a6ff;--amber:#f0a500;--red:#f85149;--purple:#bc8cff;--teal:#39c5bb;--muted:#8b949e;--text:#e6edf3;--font:'JetBrains Mono','Fira Code','Cascadia Code',monospace}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--surface3:#21262d;
+  --border:#30363d;--border2:#21262d;
+  --green:#39d353;--blue:#58a6ff;--amber:#f0a500;--red:#f85149;
+  --purple:#bc8cff;--teal:#39c5bb;--muted:#8b949e;--text:#e6edf3;
+  --font:'JetBrains Mono','Fira Code','Cascadia Code',monospace
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.6;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
-.logo{color:var(--green);font-weight:700;font-size:14px;letter-spacing:.05em;white-space:nowrap}.logo span{color:var(--muted);font-weight:400}
+
+/* ── Header ── */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:6px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:42px}
+.logo{color:var(--green);font-weight:700;font-size:13px;letter-spacing:.05em;white-space:nowrap}.logo span{color:var(--muted);font-weight:400}
 #status-dot{width:8px;height:8px;border-radius:50%;background:var(--red);transition:background .4s;flex-shrink:0}#status-dot.ok{background:var(--green);box-shadow:0 0 5px var(--green)}
-.hmodels{display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap}
-.hchip{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:10px;color:var(--muted);white-space:nowrap}.hchip span{color:var(--blue)}.hchip.ws-on{border-color:var(--teal)}.hchip.ws-on span{color:var(--teal)}.hchip.running{border-color:var(--amber)}.hchip.running span{color:var(--amber)}
+.hmodels{display:flex;gap:4px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.hchip{background:var(--surface2);border:1px solid var(--border);padding:2px 7px;border-radius:4px;font-size:10px;color:var(--muted);white-space:nowrap}.hchip span{color:var(--blue)}.hchip.ws-on{border-color:var(--teal)}.hchip.ws-on span{color:var(--teal)}.hchip.running{border-color:var(--amber);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── Tabs ── */
 .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;padding:0 8px}
-.tab{padding:7px 18px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--muted);border:none;border-bottom:2px solid transparent;transition:all .2s;background:none;letter-spacing:.03em}.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab{padding:6px 16px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--muted);border:none;border-bottom:2px solid transparent;transition:all .2s;background:none;letter-spacing:.03em}.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ── Panels ── */
 .panel{display:none;flex:1;overflow:hidden;min-height:0}.panel.active{display:flex}
-#agent-panel{flex-direction:row}#terminal-pane{flex:1;display:flex;flex-direction:column;min-width:0}
-#output{flex:1;overflow-y:auto;padding:10px 16px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;font-size:12px}
+#agent-panel{flex-direction:row}
+
+/* ── Terminal pane ── */
+#terminal-pane{flex:1;display:flex;flex-direction:column;min-width:0}
+#output{flex:1;overflow-y:auto;padding:8px 14px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;font-size:12px}
 .line{margin-bottom:1px;word-break:break-word;display:flex;gap:8px;line-height:1.5}
-.line .ts{color:var(--muted);opacity:.5;flex-shrink:0;font-size:10px;min-width:62px;user-select:none}
+.line .ts{color:var(--muted);opacity:.45;flex-shrink:0;font-size:10px;min-width:58px;user-select:none}
 .line .msg{flex:1;min-width:0}
-.line.system .msg{color:var(--muted)}.line.task .msg{color:var(--amber);font-weight:600}.line.ok .msg{color:var(--green)}.line.err .msg{color:var(--red)}.line.info .msg{color:var(--blue)}.line.plan .msg{color:#c9d1d9}.line.search .msg{color:var(--teal)}
-.line.phase .msg{font-weight:600;padding:2px 0}
+.line.system .msg{color:var(--muted)}.line.task .msg{color:var(--amber);font-weight:600}
+.line.ok .msg{color:var(--green)}.line.err .msg{color:var(--red)}.line.info .msg{color:var(--blue)}
+.line.plan .msg{color:#c9d1d9}.line.search .msg{color:var(--teal)}
+.line.phase .msg{font-weight:600;padding:1px 0}
 .line.phase.start .msg{color:var(--blue)}.line.phase.done .msg{color:var(--green)}.line.phase.done.rejected .msg{color:var(--red)}
-.line.separator{border-top:1px solid var(--border2);margin:6px 0 4px;height:0;display:block}
 .line.stream-live .msg{color:var(--muted);opacity:.75;font-style:italic;white-space:pre-wrap;word-break:break-all}
-.line.stream-live{border-left:2px solid var(--blue);padding-left:6px;opacity:.85}
-#input-bar{border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px;background:var(--surface);flex-shrink:0;align-items:center}
-#task-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;min-width:0}#task-input:focus{border-color:var(--blue)}#task-input::placeholder{color:var(--muted)}
-.sbtn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 16px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .2s}.sbtn:hover{background:#2ea043}.sbtn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
-.cbtn{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:7px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none}.cbtn:hover{border-color:var(--red);color:var(--red)}.cbtn.visible{display:block}
-#sidebar{width:210px;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;flex-shrink:0}
-.stitle{padding:7px 12px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);flex-shrink:0}
-#file-list{overflow-y:auto;flex:1}.fitem{padding:5px 12px;font-size:11px;color:var(--blue);cursor:pointer;border-bottom:1px solid var(--border2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fitem:hover{background:var(--surface2)}
-.empty{padding:16px 12px;font-size:11px;color:var(--muted);text-align:center;line-height:1.8}
+.line.stream-live{border-left:2px solid var(--blue);padding-left:6px;margin:2px 0}
+.line.separator{border-top:1px solid var(--border2);margin:5px 0;height:0;display:block}
+
+/* ── Input bar ── */
+#input-bar{border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;background:var(--surface);flex-shrink:0;align-items:flex-start}
+.input-wrap{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+#task-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;resize:vertical;min-height:36px;max-height:120px}
+#task-input:focus{border-color:var(--blue)}#task-input::placeholder{color:var(--muted)}
+.input-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctx-toggle{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);cursor:pointer;user-select:none}
+.ctx-toggle input{cursor:pointer;accent-color:var(--teal)}
+#char-count{font-size:10px;color:var(--muted);margin-left:auto}
+.sbtn{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 14px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .2s;align-self:flex-start}.sbtn:hover{background:#2ea043}.sbtn:disabled{background:#1f3d24;color:var(--muted);cursor:default}
+.cbtn{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:7px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none;align-self:flex-start}.cbtn:hover{border-color:var(--red);color:var(--red)}.cbtn.visible{display:block}
+
+/* ── Sidebar ── */
+#sidebar{width:220px;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;flex-shrink:0}
+.stitle{padding:6px 10px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-shrink:0}
+.stitle .scnt{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0 5px;font-size:9px}
+.stitle .sact{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;font-family:var(--font);padding:0 2px}.stitle .sact:hover{color:var(--red)}
+
+/* ── File tree ── */
+#file-list{overflow-y:auto;flex:1}
+.fitem{padding:4px 10px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:6px;min-height:28px}
+.fitem:hover{background:var(--surface2)}
+.fitem .fname{color:var(--blue);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitem .fdir{color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitem.new-file{animation:flashgreen .8s ease-out}
+@keyframes flashgreen{0%{background:#0d3318}100%{background:transparent}}
+.empty{padding:14px 10px;font-size:11px;color:var(--muted);text-align:center;line-height:1.8}
+
+/* ── Workspace actions ── */
+.wactions{border-top:1px solid var(--border);padding:6px 8px;display:flex;gap:4px;flex-shrink:0}
+.wbtn{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--font);font-size:10px;padding:4px 6px;cursor:pointer;text-align:center}.wbtn:hover{border-color:var(--blue);color:var(--blue)}
+.wbtn.danger:hover{border-color:var(--red);color:var(--red)}
+
+/* ── Models / Config panels ── */
 #models-panel,#config-panel{overflow-y:auto;flex-direction:column}
-.pcontent{padding:20px 28px;width:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
-.sh{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}.sh .cnt{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 7px;font-size:10px;color:var(--muted)}
-.ilist{display:flex;flex-direction:column;gap:5px}.icard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.icard.act{border-color:#1a3a5c}.iinfo{flex:1;min-width:180px}.iname{font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}.badge{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid var(--blue);color:var(--blue)}.imeta{font-size:10px;color:var(--muted);margin-top:2px}.ibtns{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap}
-.btn-s{font-family:var(--font);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all .15s}.btn-role{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}.btn-role:hover{border-color:var(--blue);color:var(--blue)}.btn-role.on{border-color:var(--blue);color:var(--blue);background:#0d2137}.btn-x{background:none;border:1px solid #3d2020;color:var(--red)}.btn-x:hover{background:#2a1010}
-.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}.ccard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px}.ccard.inst{border-color:#1a3a1a}.cname{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}.crec{font-size:8px;padding:1px 5px;border-radius:3px;background:#162312;border:1px solid var(--green);color:var(--green);text-transform:uppercase}.cmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.csize{font-size:10px;color:var(--muted)}.ctag{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid}.ctag.code{color:var(--blue);border-color:#1a3a5c;background:#0a1f35}.ctag.reasoning{color:var(--purple);border-color:#2a1a5c;background:#150a35}.ctag.general{color:var(--green);border-color:#1a3a1a;background:#0a2010}.ctag.embedding{color:var(--amber);border-color:#3a2a0a;background:#201500}.ctag.vision{color:var(--teal);border-color:#0a3a35;background:#051f1d}.cdesc{font-size:10px;color:var(--muted)}.cspeed{font-size:9px;color:var(--muted);opacity:.7}.cacts{display:flex;gap:6px;margin-top:auto;padding-top:4px}.btn-inst{flex:1;background:#0a1f0a;border:1px solid #2ea043;border-radius:4px;color:var(--green);font-family:var(--font);font-size:11px;padding:5px 8px;cursor:pointer;text-align:center}.btn-inst:hover{background:#162312}.btn-inst.done{opacity:.6;cursor:default}.btn-inst:disabled{opacity:.4;cursor:default}.pbar{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px;display:none}.pbar.on{display:block}.pfill{height:100%;background:var(--blue);width:0%;transition:width .3s}
-.frow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}.fbtn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--font);font-size:10px;padding:3px 10px;cursor:pointer;transition:all .2s}.fbtn.active{border-color:var(--blue);color:var(--blue)}
-.crow{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.crow input{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none}.crow input:focus{border-color:var(--blue)}.crow input::placeholder{color:var(--muted)}
-.btn-pull{background:#238636;border:none;border-radius:4px;color:#fff;font-family:var(--font);font-size:11px;padding:6px 14px;cursor:pointer;white-space:nowrap;flex-shrink:0}.btn-pull:hover{background:#2ea043}
-.cgroup{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}.cgtitle{padding:10px 16px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--surface2);border-bottom:1px solid var(--border)}.crow2{padding:12px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:16px;min-height:50px}.crow2:last-child{border-bottom:none}.clabel{flex:1;min-width:0}.ckey{font-size:12px;color:var(--text);margin-bottom:1px}.cdsc2{font-size:11px;color:var(--muted)}.cctrl{flex-shrink:0;display:flex;align-items:center;gap:6px}.cinput{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:100px;text-align:right}.cinput:focus{border-color:var(--blue)}.cunit{font-size:10px;color:var(--muted)}.csel{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:220px;max-width:100%;cursor:pointer}.rwrap{display:flex;align-items:center;gap:8px}.rng{width:120px;accent-color:var(--blue)}.rval{font-size:11px;color:var(--blue);min-width:28px;text-align:right}
-.toggle{position:relative;width:44px;height:24px;flex-shrink:0}.toggle input{opacity:0;width:0;height:0}.toggle .sl{position:absolute;cursor:pointer;inset:0;background:var(--surface3);border:1px solid var(--border);border-radius:12px;transition:.3s}.toggle .sl:before{content:'';position:absolute;width:18px;height:18px;left:2px;bottom:2px;background:var(--muted);border-radius:50%;transition:.3s}.toggle input:checked+.sl{background:#0a3a35;border-color:var(--teal)}.toggle input:checked+.sl:before{transform:translateX(20px);background:var(--teal)}.trow{display:flex;align-items:center;gap:10px}.tlbl{font-size:11px;color:var(--muted)}.tlbl.on{color:var(--teal)}
-.saverow{display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap}.btn-sv{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:8px 20px;cursor:pointer}.btn-sv:hover{background:#2ea043}.btn-rst{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:8px 16px;cursor:pointer}.btn-rst:hover{border-color:var(--red);color:var(--red)}.svfb{font-size:11px;color:var(--green);opacity:0;transition:opacity .3s}.svfb.show{opacity:1}
-#fmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}#fmodal.open{display:flex}#fmi{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:82vw;max-height:82vh;display:flex;flex-direction:column;overflow:hidden}#fmh{padding:10px 16px;display:flex;align-items:center;border-bottom:1px solid var(--border);gap:10px}#fmt{flex:1;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#fmc{flex:1;overflow:auto;padding:16px;white-space:pre;font-size:12px;color:#c9d1d9}
+.pcontent{padding:18px 24px;width:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.sh{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}.sh .cnt{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 7px;font-size:10px;color:var(--muted)}
+.ilist{display:flex;flex-direction:column;gap:4px}
+.icard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.icard.act{border-color:#1a3a5c}
+.iinfo{flex:1;min-width:180px}.iname{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.badge{font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid var(--blue);color:var(--blue)}
+.imeta{font-size:10px;color:var(--muted);margin-top:1px}
+.ibtns{display:flex;gap:3px;flex-shrink:0;flex-wrap:wrap}
+.btn-s{font-family:var(--font);font-size:10px;padding:3px 7px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all .15s}.btn-role{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}.btn-role:hover{border-color:var(--blue);color:var(--blue)}.btn-role.on{border-color:var(--blue);color:var(--blue);background:#0d2137}.btn-x{background:none;border:1px solid #3d2020;color:var(--red)}.btn-x:hover{background:#2a1010}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:5px}.ccard.inst{border-color:#1a3a1a}
+.cname{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}.crec{font-size:8px;padding:1px 5px;border-radius:3px;background:#162312;border:1px solid var(--green);color:var(--green);text-transform:uppercase}
+.cmeta{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.csize{font-size:10px;color:var(--muted)}
+.ctag{font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid}.ctag.code{color:var(--blue);border-color:#1a3a5c;background:#0a1f35}.ctag.reasoning{color:var(--purple);border-color:#2a1a5c;background:#150a35}.ctag.general{color:var(--green);border-color:#1a3a1a;background:#0a2010}.ctag.embedding{color:var(--amber);border-color:#3a2a0a;background:#201500}.ctag.vision{color:var(--teal);border-color:#0a3a35;background:#051f1d}
+.cdesc{font-size:10px;color:var(--muted)}.cspeed{font-size:9px;color:var(--muted);opacity:.7}
+.cacts{display:flex;gap:5px;margin-top:auto;padding-top:3px}
+.btn-inst{flex:1;background:#0a1f0a;border:1px solid #2ea043;border-radius:4px;color:var(--green);font-family:var(--font);font-size:11px;padding:5px 8px;cursor:pointer;text-align:center}.btn-inst:hover{background:#162312}.btn-inst.done{opacity:.6;cursor:default}.btn-inst:disabled{opacity:.4;cursor:default}
+.pbar{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:3px;display:none}.pbar.on{display:block}.pfill{height:100%;background:var(--blue);width:0%;transition:width .3s}
+.frow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.fbtn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--font);font-size:10px;padding:3px 9px;cursor:pointer;transition:all .2s}.fbtn.active{border-color:var(--blue);color:var(--blue)}
+.crow{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.crow input{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none}.crow input:focus{border-color:var(--blue)}.crow input::placeholder{color:var(--muted)}
+.btn-pull{background:#238636;border:none;border-radius:4px;color:#fff;font-family:var(--font);font-size:11px;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0}.btn-pull:hover{background:#2ea043}
+.cgroup{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.cgtitle{padding:9px 14px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--surface2);border-bottom:1px solid var(--border)}
+.crow2{padding:11px 14px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:14px;min-height:48px}.crow2:last-child{border-bottom:none}
+.clabel{flex:1;min-width:0}.ckey{font-size:12px;color:var(--text);margin-bottom:1px}.cdsc2{font-size:10px;color:var(--muted)}
+.cctrl{flex-shrink:0;display:flex;align-items:center;gap:5px}
+.cinput{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:90px;text-align:right}.cinput:focus{border-color:var(--blue)}
+.cunit{font-size:10px;color:var(--muted)}
+.csel{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;width:220px;max-width:100%;cursor:pointer}
+.rwrap{display:flex;align-items:center;gap:7px}.rng{width:110px;accent-color:var(--blue)}.rval{font-size:11px;color:var(--blue);min-width:28px;text-align:right}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}.toggle input{opacity:0;width:0;height:0}.toggle .sl{position:absolute;cursor:pointer;inset:0;background:var(--surface3);border:1px solid var(--border);border-radius:11px;transition:.3s}.toggle .sl:before{content:'';position:absolute;width:16px;height:16px;left:2px;bottom:2px;background:var(--muted);border-radius:50%;transition:.3s}.toggle input:checked+.sl{background:#0a3a35;border-color:var(--teal)}.toggle input:checked+.sl:before{transform:translateX(18px);background:var(--teal)}
+.trow{display:flex;align-items:center;gap:8px}.tlbl{font-size:11px;color:var(--muted)}.tlbl.on{color:var(--teal)}
+.saverow{display:flex;justify-content:flex-end;gap:7px;align-items:center;flex-wrap:wrap}
+.btn-sv{background:#238636;border:none;border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;padding:7px 18px;cursor:pointer}.btn-sv:hover{background:#2ea043}
+.btn-rst{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:12px;padding:7px 14px;cursor:pointer}.btn-rst:hover{border-color:var(--red);color:var(--red)}
+.svfb{font-size:11px;color:var(--green);opacity:0;transition:opacity .3s}.svfb.show{opacity:1}
+
+/* ── File modal ── */
+#fmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center}#fmodal.open{display:flex}
+#fmi{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:85vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+#fmh{padding:9px 14px;display:flex;align-items:center;border-bottom:1px solid var(--border);gap:8px}
+#fmt{flex:1;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fmbtns{display:flex;gap:6px}
+.fmbtn{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--font);font-size:11px;padding:4px 10px;cursor:pointer}.fmbtn:hover{border-color:var(--blue);color:var(--blue)}
+#fmc{flex:1;overflow:auto;padding:14px;white-space:pre;font-size:12px;color:#c9d1d9;line-height:1.5}
+
+/* ── Progress bar ── */
+#task-progress{height:2px;background:var(--border);flex-shrink:0;display:none;overflow:hidden}
+#task-progress.running{display:block}
+#task-progress-fill{height:100%;background:var(--blue);width:5%;animation:indeterminate 1.8s ease-in-out infinite}
+@keyframes indeterminate{0%{transform:translateX(-100%);width:40%}50%{transform:translateX(60%);width:40%}100%{transform:translateX(200%);width:40%}}
+
 @keyframes spin{to{transform:rotate(360deg)}}.spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
 @media(max-width:800px){#sidebar{display:none}.hmodels{display:none}.crow2{flex-direction:column;align-items:flex-start;gap:8px}.cctrl{align-self:flex-end}.cgrid{grid-template-columns:1fr}.csel{width:100%}}
 </style>
@@ -66,14 +153,35 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 
 <div id="agent-panel" class="panel active">
   <div id="terminal-pane">
+    <div id="task-progress"><div id="task-progress-fill"></div></div>
     <div id="output"></div>
     <div id="input-bar">
-      <input id="task-input" type="text" placeholder="Décris une tâche… ex: Crée un serveur HTTP Python avec /hello" autocomplete="off">
-      <button id="cancel-btn" class="cbtn" onclick="cancelTask()">✕ Annuler</button>
+      <div class="input-wrap">
+        <textarea id="task-input" rows="1" placeholder="Décris une tâche… ex: Crée un serveur HTTP Python avec /hello" autocomplete="off"></textarea>
+        <div class="input-meta">
+          <label class="ctx-toggle" title="Injecte les fichiers existants du workspace comme contexte (mode continuation de projet)">
+            <input type="checkbox" id="ctx-inject" checked>
+            <span>📁 Contexte projet</span>
+          </label>
+          <span id="char-count">0 car.</span>
+        </div>
+      </div>
+      <button id="cancel-btn" class="cbtn" onclick="cancelTask()">✕ Stop</button>
       <button id="send-btn" class="sbtn">▶ Lancer</button>
     </div>
   </div>
-  <div id="sidebar"><div class="stitle">Workspace</div><div id="file-list"></div></div>
+  <div id="sidebar">
+    <div class="stitle">
+      Workspace
+      <span class="scnt" id="file-cnt">0</span>
+      <button class="sact" onclick="refreshF()" title="Rafraîchir">↺</button>
+    </div>
+    <div id="file-list"><div class="empty">Aucun fichier</div></div>
+    <div class="wactions">
+      <button class="wbtn" onclick="downloadAll()" title="Télécharger tous les fichiers">⬇ ZIP</button>
+      <button class="wbtn danger" onclick="clearWorkspace()" title="Vider le workspace">🗑 Vider</button>
+    </div>
+  </div>
 </div>
 
 <div id="models-panel" class="panel">
@@ -98,7 +206,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 <div id="config-panel" class="panel">
   <div class="pcontent">
     <div class="cgroup"><div class="cgtitle">🌐 Recherche Web</div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Accès Internet pour les IA</div><div class="cdsc2">Le planificateur peut déclencher des recherches DuckDuckGo. Les résultats sont injectés dans le contexte du codeur.</div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Accès Internet pour les IA</div><div class="cdsc2">Le planificateur déclenche des recherches DuckDuckGo séquentielles (anti rate-limit). Résultats injectés dans le contexte du codeur.</div></div>
       <div class="cctrl"><div class="trow"><span class="tlbl" id="ws-lbl">OFF</span><label class="toggle"><input type="checkbox" id="cfg-ws" onchange="toggleWS(this)"><span class="sl"></span></label></div></div></div>
     </div>
     <div class="cgroup"><div class="cgtitle">Modèles par rôle</div>
@@ -110,26 +218,41 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
     <div class="cgroup"><div class="cgtitle">Agents</div>
       <div class="crow2"><div class="clabel"><div class="ckey">Tentatives max</div><div class="cdsc2">Nombre maximum de cycles codeur/reviewer</div></div><div class="cctrl"><input class="cinput" id="cfg-retries" type="number" min="1" max="15" value="5"></div></div>
       <div class="crow2"><div class="clabel"><div class="ckey">Température</div><div class="cdsc2">0 = déterministe, 1 = créatif. 0.2 recommandé pour du code.</div></div><div class="cctrl"><div class="rwrap"><input class="rng" id="cfg-temp" type="range" min="0" max="1" step="0.05" value="0.2" oninput="$('cfg-tv').textContent=this.value"><span class="rval" id="cfg-tv">0.2</span></div></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Tokens max</div><div class="cdsc2">Longueur max de la réponse du codeur</div></div><div class="cctrl"><input class="cinput" id="cfg-tokens" type="number" min="1024" max="65536" step="1024" value="8192"></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Tokens max</div><div class="cdsc2">Longueur max de la réponse du codeur (16384 recommandé pour gros projets)</div></div><div class="cctrl"><input class="cinput" id="cfg-tokens" type="number" min="1024" max="65536" step="1024" value="16384"></div></div>
     </div>
     <div class="cgroup"><div class="cgtitle">Sandbox & Ollama</div>
       <div class="crow2"><div class="clabel"><div class="ckey">Timeout commande</div><div class="cdsc2">Durée max d'exécution d'une commande shell</div></div><div class="cctrl"><input class="cinput" id="cfg-cmdto" type="number" min="5" max="600" value="60"><span class="cunit">sec</span></div></div>
-      <div class="crow2"><div class="clabel"><div class="ckey">Taille max fichier</div><div class="cdsc2">Limite par fichier généré</div></div><div class="cctrl"><input class="cinput" id="cfg-maxf" type="number" min="64" max="10240" step="64" value="2048"><span class="cunit">KB</span></div></div>
+      <div class="crow2"><div class="clabel"><div class="ckey">Taille max fichier</div><div class="cdsc2">Limite par fichier généré (augmenter pour gros projets)</div></div><div class="cctrl"><input class="cinput" id="cfg-maxf" type="number" min="64" max="10240" step="256" value="4096"><span class="cunit">KB</span></div></div>
       <div class="crow2"><div class="clabel"><div class="ckey">Timeout IA (Ollama)</div><div class="cdsc2">Durée max pour qu'un modèle réponde</div></div><div class="cctrl"><input class="cinput" id="cfg-ollto" type="number" min="30" max="900" value="300"><span class="cunit">sec</span></div></div>
     </div>
     <div class="saverow"><span class="svfb" id="svfb">✔ Sauvegardé</span><button class="btn-rst" onclick="loadCfg()">↺ Reset</button><button class="btn-sv" onclick="saveCfg()">💾 Sauvegarder</button></div>
   </div>
 </div>
 
+<!-- File modal -->
 <div id="fmodal"><div id="fmi">
-  <div id="fmh"><span id="fmt">—</span><button onclick="closeFM()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button></div>
+  <div id="fmh">
+    <span id="fmt">—</span>
+    <div class="fmbtns">
+      <button class="fmbtn" onclick="copyFile()">📋 Copier</button>
+      <button class="fmbtn" onclick="closeFM()">✕</button>
+    </div>
+  </div>
   <div id="fmc"></div>
 </div></div>
 
 <script>
 const $=id=>document.getElementById(id);
 const output=$('output'),taskIn=$('task-input'),sendBtn=$('send-btn'),cancelBtn=$('cancel-btn'),sDot=$('status-dot'),fList=$('file-list');
-let ws,installed=[],catalog=[],curTag='',wsEnabled=false;
+let ws, installed=[], catalog=[], curTag='', wsEnabled=false;
+let _currentFileContent='';
+
+// ── Auto-resize textarea ──────────────────────────────────────────
+taskIn.addEventListener('input',()=>{
+  taskIn.style.height='auto';
+  taskIn.style.height=Math.min(taskIn.scrollHeight,120)+'px';
+  $('char-count').textContent=taskIn.value.length+' car.';
+});
 
 // ── Utilitaires ──────────────────────────────────────────────────
 function now(ts){const d=ts?new Date(ts*1000):new Date();return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
@@ -155,23 +278,22 @@ function switchTab(n){
 // ── Status & header ──────────────────────────────────────────────
 async function fetchStatus(){
   try{
-    const r=await fetch('/api/status'), d=await r.json();
+    const r=await fetch('/api/status'),d=await r.json();
     sDot.classList.toggle('ok',d.ollama);
     installed=d.models||[];
     wsEnabled=d.web_search_enabled||false;
-    renderHdr(d.active_model||{}, d.task_running||false);
+    renderHdr(d.active_model||{},d.task_running||false);
     renderFiles(d.files||[]);
-    log(d.ollama?'✔ Ollama en ligne — prêt':'⚠ Ollama hors ligne — lancez: ollama serve', d.ollama?'ok':'err');
-    if(d.ollama&&!installed.length) log('⚠ Aucun modèle installé → onglet Modèles','err');
-    if(wsEnabled) log('🌐 Recherche web activée','search');
+    log(d.ollama?'✔ Ollama en ligne — prêt':'⚠ Ollama hors ligne — lancez: ollama serve',d.ollama?'ok':'err');
+    if(d.ollama&&!installed.length)log('⚠ Aucun modèle installé → onglet Modèles','err');
+    if(wsEnabled)log('🌐 Recherche web activée (séquentiel, anti rate-limit)','search');
   }catch{log('Backend injoignable.','err');}
 }
 
-function renderHdr(am, running){
-  const el=$('hmodels'); el.innerHTML='';
+function renderHdr(am,running){
+  const el=$('hmodels');el.innerHTML='';
   ['Planner','Coder','Reviewer'].forEach(r=>{
-    const c=document.createElement('div');
-    c.className='hchip';
+    const c=document.createElement('div');c.className='hchip';
     c.innerHTML=`${r}: <span>${am[r.toLowerCase()]||'—'}</span>`;
     el.appendChild(c);
   });
@@ -180,26 +302,36 @@ function renderHdr(am, running){
   w.innerHTML=`🌐 <span>${wsEnabled?'ON':'OFF'}</span>`;
   el.appendChild(w);
   if(running){
-    const r=document.createElement('div');
-    r.className='hchip running';
-    r.innerHTML=`<span>⚙ en cours…</span>`;
-    el.appendChild(r);
+    const r=document.createElement('div');r.className='hchip running';
+    r.innerHTML=`<span>⚙ en cours…</span>`;el.appendChild(r);
   }
 }
 
-function renderFiles(f){
+// ── File rendering ───────────────────────────────────────────────
+let _knownFiles=new Set();
+
+function renderFiles(files,highlightNew=false){
   fList.innerHTML='';
-  if(!f.length){fList.innerHTML='<div class="empty">Aucun fichier</div>';return;}
-  f.forEach(n=>{
+  $('file-cnt').textContent=files.length;
+  if(!files.length){fList.innerHTML='<div class="empty">Aucun fichier\nLance une tâche\npour générer du code</div>';_knownFiles=new Set();return;}
+  files.forEach(n=>{
+    const parts=n.split('/');
+    const fname=parts.pop();
+    const fdir=parts.join('/');
     const d=document.createElement('div');
-    d.className='fitem'; d.textContent=n;
+    d.className='fitem'+(highlightNew&&!_knownFiles.has(n)?' new-file':'');
+    d.innerHTML=`<div style="flex:1;min-width:0"><div class="fname">${fname}</div>${fdir?`<div class="fdir">${fdir}/</div>`:''}</div>`;
     d.onclick=()=>openF(n);
     fList.appendChild(d);
   });
+  if(highlightNew)_knownFiles=new Set(files);
 }
 
 async function refreshF(){
-  try{renderFiles((await(await fetch('/api/files')).json()).files||[]);}catch{}
+  try{
+    const d=await(await fetch('/api/files')).json();
+    renderFiles(d.files||[],true);
+  }catch{}
 }
 
 // ── WebSocket ────────────────────────────────────────────────────
@@ -212,7 +344,7 @@ function connectWS(){
 }
 
 // ── Streaming ────────────────────────────────────────────────────
-let _streamEl=null, _streamBuf='';
+let _streamEl=null,_streamBuf='';
 
 function _streamCreate(){
   _streamBuf='';
@@ -222,15 +354,12 @@ function _streamCreate(){
   output.appendChild(_streamEl);
   output.scrollTop=1e9;
 }
-
 function _streamAppend(token){
-  if(!_streamEl) _streamCreate();
+  if(!_streamEl)_streamCreate();
   _streamBuf+=token;
-  // Afficher les 400 derniers chars pour éviter un DOM trop lourd
-  _streamEl.querySelector('.stream-msg').textContent=_streamBuf.slice(-400);
+  _streamEl.querySelector('.stream-msg').textContent=_streamBuf.slice(-500);
   output.scrollTop=1e9;
 }
-
 function _streamClose(){
   if(_streamEl){_streamEl.classList.remove('stream-live');_streamEl=null;}
   _streamBuf='';
@@ -250,76 +379,90 @@ function onMsg(m){
   if(m.type==='stream_token'){_streamAppend(m.token);return;}
   if(m.type==='stream_end'){_streamClose();return;}
 
-  if(m.type==='started'){
-    log(`▶ Tâche: ${m.task}`,'task',ts);
-    setRunning(true);
+  // Live file updates — on rafraîchit la sidebar immédiatement
+  if(m.type==='file_written'||m.type==='files_updated'){
+    const files=m.files||[];
+    renderFiles(files,true);
+    return;
   }
-  if(m.type==='result'){
-    _streamClose(); setRunning(false); refreshF();
-  }
-  if(m.type==='error'){
-    _streamClose(); log(`Erreur: ${m.message}`,'err',ts); setRunning(false);
-  }
-  if(m.type==='pull_start') log(`⬇ ${m.model}…`,'info',ts);
+
+  if(m.type==='started'){log(`▶ Tâche: ${m.task}`,'task',ts);setRunning(true);}
+  if(m.type==='result'){_streamClose();setRunning(false);refreshF();}
+  if(m.type==='error'){_streamClose();log(`Erreur: ${m.message}`,'err',ts);setRunning(false);}
+  if(m.type==='pull_start')log(`⬇ ${m.model}…`,'info',ts);
   if(m.type==='pull_progress'){
     const p=m.data?.completed&&m.data?.total?Math.round(m.data.completed/m.data.total*100):null;
-    if(p!==null) updPull(m.model,p,'dl');
+    if(p!==null)updPull(m.model,p,'dl');
   }
   if(m.type==='pull_done'){log(`✔ ${m.model} installé !`,'ok',ts);updPull(m.model,100,'ok');loadInst();}
-  if(m.type==='pull_error') log(`✘ ${m.model}: ${m.message}`,'err',ts);
+  if(m.type==='pull_error')log(`✘ ${m.model}: ${m.message}`,'err',ts);
   if(m.type==='model_deleted'){log('✕ Supprimé.','err',ts);loadInst();}
 }
 
 function setRunning(running){
   sendBtn.disabled=running;
   sendBtn.textContent=running?'…':'▶ Lancer';
-  cancelBtn.classList.toggle('visible', running);
+  cancelBtn.classList.toggle('visible',running);
+  $('task-progress').classList.toggle('running',running);
 }
 
 // ── Tâches ───────────────────────────────────────────────────────
 async function sendTask(){
   const t=taskIn.value.trim();
   if(!t||sendBtn.disabled)return;
-  taskIn.value='';
+  taskIn.value='';taskIn.style.height='auto';$('char-count').textContent='0 car.';
   if(!installed.length){log('⚠ Aucun modèle installé.','err');return;}
-  if(ws?.readyState===1) ws.send(JSON.stringify({type:'task',task:t}));
+  if(ws?.readyState===1)ws.send(JSON.stringify({type:'task',task:t}));
   else await fetch('/api/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:t})});
 }
-
 async function cancelTask(){
   try{await fetch('/api/task/cancel',{method:'POST'});}catch{}
 }
-
 sendBtn.onclick=sendTask;
-taskIn.onkeydown=e=>{if(e.key==='Enter')sendTask();};
+taskIn.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendTask();}};
+
+// ── Workspace actions ─────────────────────────────────────────────
+async function downloadAll(){
+  try{
+    const d=await(await fetch('/api/files')).json();
+    const files=d.files||[];
+    if(!files.length){log('Workspace vide.','err');return;}
+    // Simple: ouvrir chaque fichier dans des onglets n'est pas idéal,
+    // on va afficher un résumé avec copie
+    log(`📦 ${files.length} fichiers dans le workspace: ${files.slice(0,5).join(', ')}${files.length>5?'…':''}`, 'info');
+  }catch{}
+}
+
+async function clearWorkspace(){
+  if(!confirm('Vider tout le workspace ? Cette action est irréversible.'))return;
+  try{
+    const r=await fetch('/api/workspace/clear',{method:'POST'});
+    if(r.ok){log('🗑 Workspace vidé.','err');renderFiles([]);}
+    else log('Erreur lors du nettoyage.','err');
+  }catch{log('Erreur réseau.','err');}
+}
 
 // ── Modèles ──────────────────────────────────────────────────────
 async function loadInst(){
   const el=$('ilist');
   try{
     const[lr,sr]=await Promise.all([fetch('/api/models/local'),fetch('/api/status')]);
-    const{models,count}=await lr.json(), {active_model:am}=await sr.json();
+    const{models,count}=await lr.json(),{active_model:am}=await sr.json();
     installed=(models||[]).map(m=>m.name||m);
     $('inst-cnt').textContent=count||0;
-    renderHdr(am||{}, false);
+    renderHdr(am||{},false);
     if(!models?.length){el.innerHTML='<div class="empty">Aucun modèle installé.</div>';return;}
     el.innerHTML='';
     models.forEach(m=>{
-      const n=m.name||m, isP=n===am?.planner, isC=n===am?.coder, isR=n===am?.reviewer;
-      const d=document.createElement('div');
-      d.className='icard'+(isC?' act':'');
+      const n=m.name||m,isP=n===am?.planner,isC=n===am?.coder,isR=n===am?.reviewer;
+      const d=document.createElement('div');d.className='icard'+(isC?' act':'');
       d.innerHTML=`<div class="iinfo">
-        <div class="iname">${n}
-          ${isC?'<span class="badge">coder</span>':''}
-          ${isP&&!isC?'<span class="badge">planner</span>':''}
-          ${isR&&!isC&&!isP?'<span class="badge">reviewer</span>':''}
-        </div>
-        <div class="imeta">${m.size||''} ${m.params?'· '+m.params:''}</div>
-      </div>
+        <div class="iname">${n}${isC?'<span class="badge">coder</span>':''}${isP&&!isC?'<span class="badge">planner</span>':''}${isR&&!isC&&!isP?'<span class="badge">reviewer</span>':''}</div>
+        <div class="imeta">${m.size||''} ${m.params?'· '+m.params:''}</div></div>
       <div class="ibtns">
-        <button class="btn-s btn-role${isP?' on':''}" onclick="setRole('${n}','planner')" title="Définir comme Planificateur">🧠</button>
-        <button class="btn-s btn-role${isC?' on':''}" onclick="setRole('${n}','coder')" title="Définir comme Codeur">💻</button>
-        <button class="btn-s btn-role${isR?' on':''}" onclick="setRole('${n}','reviewer')" title="Définir comme Reviewer">🔍</button>
+        <button class="btn-s btn-role${isP?' on':''}" onclick="setRole('${n}','planner')" title="Planificateur">🧠</button>
+        <button class="btn-s btn-role${isC?' on':''}" onclick="setRole('${n}','coder')" title="Codeur">💻</button>
+        <button class="btn-s btn-role${isR?' on':''}" onclick="setRole('${n}','reviewer')" title="Reviewer">🔍</button>
         <button class="btn-s btn-x" onclick="delModel('${n}')" title="Supprimer">✕</button>
       </div>`;
       el.appendChild(d);
@@ -329,123 +472,87 @@ async function loadInst(){
 
 async function setRole(m,r){
   await fetch('/api/models/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m,role:r})});
-  log(`⬡ ${r} → ${m}`,'info');
-  await loadInst(); popSels();
+  log(`⬡ ${r} → ${m}`,'info');await loadInst();popSels();
 }
-
 async function delModel(m){
   if(!confirm(`Supprimer "${m}" ?`))return;
   try{
     await fetch('/api/models/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});
-    log(`✕ ${m}`,'err'); await loadInst();
+    log(`✕ ${m}`,'err');await loadInst();
   }catch(e){log(`✘ ${e.message}`,'err');}
 }
 
 async function loadCat(){
-  const g=$('cgrid');
-  g.innerHTML='<div class="empty"><span class="spinner"></span></div>';
-  try{
-    catalog=(await(await fetch('/api/models/catalog')).json()).models||[];
-    renderCat();
-  }catch(e){g.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}
+  const g=$('cgrid');g.innerHTML='<div class="empty"><span class="spinner"></span></div>';
+  try{catalog=(await(await fetch('/api/models/catalog')).json()).models||[];renderCat();}
+  catch(e){g.innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`;}
 }
-
-function filt(t,b){
-  curTag=t;
-  document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active'); renderCat();
-}
-
+function filt(t,b){curTag=t;document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderCat();}
 function renderCat(){
-  const g=$('cgrid');
-  let l=catalog;
-  if(curTag) l=l.filter(m=>m.cat===curTag);
+  const g=$('cgrid');let l=catalog;
+  if(curTag)l=l.filter(m=>m.cat===curTag);
   if(!l.length){g.innerHTML='<div class="empty">Aucun.</div>';return;}
   g.innerHTML='';
   l.forEach(m=>{
     const s='p'+m.name.replace(/[^a-z0-9]/gi,'_');
-    const c=document.createElement('div');
-    c.className='ccard'+(m.installed?' inst':'');
+    const c=document.createElement('div');c.className='ccard'+(m.installed?' inst':'');
     c.innerHTML=`<div class="cname">${m.name}${m.recommended?'<span class="crec">★</span>':''}</div>
     <div class="cmeta"><span class="csize">${m.params}</span><span class="csize">${m.size}</span><span class="ctag ${m.cat}">${m.cat}</span><span class="csize">VRAM:${m.vram}</span></div>
-    <div class="cdesc">${m.desc}</div>
-    <div class="cspeed">${m.speed||''}</div>
+    <div class="cdesc">${m.desc}</div><div class="cspeed">${m.speed||''}</div>
     <div class="cacts"><button class="btn-inst${m.installed?' done':''}" id="btn_${s}" onclick="pullM('${m.name}')" ${m.installed?'disabled':''}>${m.installed?'✔ Installé':'⬇ Installer'}</button></div>
     <div class="pbar" id="bar_${s}"><div class="pfill" id="fill_${s}"></div></div>`;
     g.appendChild(c);
   });
 }
-
 function updPull(model,pct,st){
   const s='p'+model.replace(/[^a-z0-9]/gi,'_');
   const bar=$('bar_'+s),fill=$('fill_'+s),btn=$('btn_'+s);
-  if(bar)bar.classList.add('on');
-  if(fill)fill.style.width=pct+'%';
-  if(btn){
-    if(st==='ok'){btn.textContent='✔ Installé';btn.classList.add('done');btn.disabled=true;}
-    else{btn.textContent=pct+'%…';btn.disabled=true;}
-  }
+  if(bar)bar.classList.add('on');if(fill)fill.style.width=pct+'%';
+  if(btn){if(st==='ok'){btn.textContent='✔ Installé';btn.classList.add('done');btn.disabled=true;}else{btn.textContent=pct+'%…';btn.disabled=true;}}
 }
-
 async function pullM(m){switchTab('agent');await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});}
 async function pullCustom(){
-  const m=$('custom-in').value.trim();
-  if(!m)return;
-  $('custom-in').value='';
-  switchTab('agent');
+  const m=$('custom-in').value.trim();if(!m)return;
+  $('custom-in').value='';switchTab('agent');
   await fetch('/api/models/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m})});
 }
 
 // ── Config ───────────────────────────────────────────────────────
 function toggleWS(cb){
-  wsEnabled=cb.checked;
-  $('ws-lbl').textContent=wsEnabled?'ON':'OFF';
-  $('ws-lbl').classList.toggle('on',wsEnabled);
+  wsEnabled=cb.checked;$('ws-lbl').textContent=wsEnabled?'ON':'OFF';$('ws-lbl').classList.toggle('on',wsEnabled);
 }
-
 async function loadCfg(){
   try{
     const[cr,mr]=await Promise.all([fetch('/api/config'),fetch('/api/models/local')]);
-    const cfg=await cr.json(), {models}=await mr.json();
+    const cfg=await cr.json(),{models}=await mr.json();
     const n=(models||[]).map(m=>m.name||m);
     $('cfg-retries').value=cfg.agents?.max_retries??5;
     const t=cfg.agents?.temperature??0.2;
-    $('cfg-temp').value=t; $('cfg-tv').textContent=t;
-    $('cfg-tokens').value=cfg.agents?.max_tokens??8192;
+    $('cfg-temp').value=t;$('cfg-tv').textContent=t;
+    $('cfg-tokens').value=cfg.agents?.max_tokens??16384;
     $('cfg-cmdto').value=cfg.sandbox?.command_timeout??60;
-    $('cfg-maxf').value=cfg.sandbox?.max_file_size_kb??2048;
+    $('cfg-maxf').value=cfg.sandbox?.max_file_size_kb??4096;
     $('cfg-ollto').value=cfg.ollama?.timeout??300;
     const wOn=cfg.web_search?.enabled||false;
-    $('cfg-ws').checked=wOn; $('ws-lbl').textContent=wOn?'ON':'OFF';
-    $('ws-lbl').classList.toggle('on',wOn); wsEnabled=wOn;
+    $('cfg-ws').checked=wOn;$('ws-lbl').textContent=wOn?'ON':'OFF';$('ws-lbl').classList.toggle('on',wOn);wsEnabled=wOn;
     popSel('cfg-planner',n,cfg.models?.planner);
     popSel('cfg-coder',n,cfg.models?.coder);
     popSel('cfg-reviewer',n,cfg.models?.reviewer);
   }catch(e){console.error(e);}
 }
-
 function popSel(id,ms,sel){
-  const s=$(id); s.innerHTML='';
+  const s=$(id);s.innerHTML='';
   if(!ms.length){s.innerHTML='<option value="">— aucun modèle installé —</option>';return;}
-  ms.forEach(m=>{
-    const o=document.createElement('option');
-    o.value=m; o.textContent=m;
-    if(m===sel)o.selected=true;
-    s.appendChild(o);
-  });
+  ms.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===sel)o.selected=true;s.appendChild(o);});
 }
-
 function popSels(){
   fetch('/api/models/local').then(r=>r.json()).then(({models})=>{
     const n=(models||[]).map(m=>m.name||m);
     fetch('/api/config').then(r=>r.json()).then(c=>{
-      popSel('cfg-planner',n,c.models?.planner);
-      popSel('cfg-coder',n,c.models?.coder);
-      popSel('cfg-reviewer',n,c.models?.reviewer);
+      popSel('cfg-planner',n,c.models?.planner);popSel('cfg-coder',n,c.models?.coder);popSel('cfg-reviewer',n,c.models?.reviewer);
     });
   });
 }
-
 async function saveCfg(){
   const c={
     agents:{max_retries:+$('cfg-retries').value,temperature:+$('cfg-temp').value,max_tokens:+$('cfg-tokens').value},
@@ -457,29 +564,45 @@ async function saveCfg(){
   try{
     const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
     const d=await r.json();
-    if(d.status==='ok'){
-      const f=$('svfb');f.classList.add('show');setTimeout(()=>f.classList.remove('show'),2500);
-      wsEnabled=c.web_search.enabled;
-      renderHdr(c.models, false);
-      log('⚙ Config sauvegardée et appliquée.','info');
-    }
+    if(d.status==='ok'){const f=$('svfb');f.classList.add('show');setTimeout(()=>f.classList.remove('show'),2500);wsEnabled=c.web_search.enabled;renderHdr(c.models,false);log('⚙ Config sauvegardée et appliquée.','info');}
   }catch(e){log(`✘ ${e.message}`,'err');}
 }
 
 // ── Viewer fichier ───────────────────────────────────────────────
 async function openF(p){
   try{
-    const r=await fetch(`/api/file?path=${encodeURIComponent(p)}`), d=await r.json();
-    $('fmt').textContent=p; $('fmc').textContent=d.content||d.error||'';
+    const r=await fetch(`/api/file?path=${encodeURIComponent(p)}`),d=await r.json();
+    _currentFileContent=d.content||d.error||'';
+    $('fmt').textContent=p;$('fmc').textContent=_currentFileContent;
     $('fmodal').classList.add('open');
   }catch{}
 }
 function closeFM(){$('fmodal').classList.remove('open');}
+async function copyFile(){
+  try{await navigator.clipboard.writeText(_currentFileContent);$('fmc').style.background='#0a2010';setTimeout(()=>$('fmc').style.background='',400);}catch{}
+}
 $('fmodal').onclick=e=>{if(e.target===e.currentTarget)closeFM();};
+
+// ── Auto-refresh file list pendant une tâche ─────────────────────
+let _fileRefreshInterval=null;
+function startFileRefresh(){
+  if(_fileRefreshInterval)return;
+  _fileRefreshInterval=setInterval(refreshF,4000);
+}
+function stopFileRefresh(){
+  clearInterval(_fileRefreshInterval);_fileRefreshInterval=null;
+}
+// Observer le state running
+const _origSetRunning=setRunning;
+function setRunning(r){
+  _origSetRunning(r);
+  if(r)startFileRefresh();else{stopFileRefresh();refreshF();}
+}
 
 // ── Init ─────────────────────────────────────────────────────────
 log('Système multi-agent local — workspace: ~/ai-workspace','system');
 log('Connexion à Ollama…','system');
+log('💡 Astuce: Shift+Enter pour nouvelle ligne, Enter pour envoyer','system');
 fetchStatus();
 connectWS();
 </script>

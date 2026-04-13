@@ -1,15 +1,17 @@
 """
-Orchestrator v5.0 — multi-agent avec logs détaillés en temps réel.
+Orchestrator v5.1 — multi-agent avec support gros projets.
 
-Corrections v5.0 :
-  - STREAM_CHUNK_SIZE 12 → 80  (réduit le flood WebSocket de ~10×)
-  - previous_errors limité aux 3 derniers  (évite la croissance du contexte)
-  - Reviewer : max 4 fichiers × 2000 chars  (au lieu de tous × 4000)
-  - System prompts séparés du user prompt  (meilleure qualité de réponse)
-  - Détection d'erreur Ollama dans le stream  (évite de parser du JSON cassé)
-  - Config injectée proprement (temperature, max_tokens, cmd_timeout)
-  - Validation basique du résultat codeur avant review
-  - _parse_json: robustesse améliorée (réparation JSON tronqué)
+Corrections / améliorations v5.1 :
+  - REVIEW_MAX_FILES 4 -> 8, REVIEW_MAX_CHARS_PER 2000 -> 3000
+  - Injection du contexte workspace (fichiers existants) dans le prompt codeur
+  - Événement "file_written" émis en temps réel à chaque fichier créé
+    (la sidebar se met à jour sans attendre la fin de la tâche)
+  - Mode CONTINUATION : si des fichiers existent déjà dans le workspace,
+    le codeur les reçoit en contexte pour cohérence inter-tâches
+  - MAX_TOKENS augmenté à 16384 par défaut (gros projets)
+  - Prompt planner enrichi : connaissance des fichiers existants
+  - Prompt codeur enrichi : contexte projet + fichiers existants injectés
+  - web_search.multi_search désormais séquentiel (fix rate-limit DDG)
 """
 import json
 import re
@@ -31,19 +33,19 @@ AGENTS = {
 MAX_RETRIES        = 5
 WEB_SEARCH_ENABLED = False
 TEMPERATURE        = 0.2
-MAX_TOKENS         = 8192
+MAX_TOKENS         = 16384   # Augmenté pour les gros projets
 CMD_TIMEOUT        = 60
 
-# Nb de chars accumulés avant d'émettre un event stream
-# 80 chars = ~10× moins d'awaits WebSocket qu'avec 12
 STREAM_CHUNK_SIZE = 80
+MAX_PREV_ERRORS   = 3
 
-# Nombre max d'erreurs précédentes transmises au codeur (évite contexte infini)
-MAX_PREV_ERRORS = 3
+# Reviewer : limites élargies pour les gros projets
+REVIEW_MAX_FILES     = 8
+REVIEW_MAX_CHARS_PER = 3000
 
-# Reviewer : limite pour rester dans un contexte raisonnable
-REVIEW_MAX_FILES     = 4
-REVIEW_MAX_CHARS_PER = 2000
+# Contexte workspace : max chars injectés dans le prompt codeur
+WORKSPACE_CONTEXT_MAX_FILES  = 12
+WORKSPACE_CONTEXT_MAX_CHARS  = 6000
 
 
 class Orchestrator:
@@ -83,11 +85,22 @@ class Orchestrator:
             "msg": f"Recherche web: {'activée' if WEB_SEARCH_ENABLED else 'désactivée'} | "
                    f"Retries: {MAX_RETRIES} | Temp: {TEMPERATURE} | Tokens: {MAX_TOKENS}"})
 
+        # ── Contexte workspace (fichiers existants) ───────────────
+        workspace_context = self._build_workspace_context()
+        if workspace_context["files"]:
+            await self._emit({"type": "log", "level": "system",
+                "msg": f"📁 Workspace : {len(workspace_context['files'])} fichiers existants détectés"})
+            for f in workspace_context["files"][:5]:
+                await self._emit({"type": "log", "level": "system", "msg": f"   · {f}"})
+            if len(workspace_context["files"]) > 5:
+                await self._emit({"type": "log", "level": "system",
+                    "msg": f"   … et {len(workspace_context['files'])-5} autres"})
+
         # ── 1. Planification ──────────────────────────────────────
         await self._emit({"type": "phase", "phase": "planner", "state": "start",
             "msg": f"🧠 Planificateur ({AGENTS['planner']}) analyse la tâche…"})
         plan_t0  = time.time()
-        plan     = await self._plan(task)
+        plan     = await self._plan(task, workspace_context)
         plan_dur = time.time() - plan_t0
         result["plan"] = plan
 
@@ -107,7 +120,7 @@ class Orchestrator:
         web_context = ""
         if WEB_SEARCH_ENABLED and queries:
             await self._emit({"type": "phase", "phase": "search", "state": "start",
-                "msg": f"🌐 Recherche web — {len(queries)} requêtes…"})
+                "msg": f"🌐 Recherche web — {len(queries)} requêtes (séquentiel)…"})
             for q in queries:
                 await self._emit({"type": "log", "level": "search", "msg": f'  🔍 "{q}"'})
 
@@ -123,10 +136,14 @@ class Orchestrator:
             total_res = sum(len(v) for v in search_results.values())
             await self._emit({"type": "phase", "phase": "search", "state": "done",
                 "msg": f"🌐 {total_res} résultats en {search_dur:.1f}s"})
-            for q, items in search_results.items():
-                for item in items:
-                    await self._emit({"type": "log", "level": "search",
-                        "msg": f"    • {item['title'][:80]}"})
+            if total_res == 0:
+                await self._emit({"type": "log", "level": "err",
+                    "msg": "  ⚠ Aucun résultat — DuckDuckGo a peut-être rate-limité la requête."})
+            else:
+                for q, items in search_results.items():
+                    for item in items:
+                        await self._emit({"type": "log", "level": "search",
+                            "msg": f"    • {item['title'][:80]}"})
         elif WEB_SEARCH_ENABLED:
             await self._emit({"type": "log", "level": "system",
                 "msg": "🌐 Recherche web activée mais aucune requête nécessaire."})
@@ -148,12 +165,17 @@ class Orchestrator:
             if web_context:
                 await self._emit({"type": "log", "level": "system",
                     "msg": "  (contexte web injecté dans le prompt)"})
+            if workspace_context["files"]:
+                await self._emit({"type": "log", "level": "system",
+                    "msg": f"  (contexte workspace : {len(workspace_context['files'])} fichiers)"})
             if previous_errors:
                 await self._emit({"type": "log", "level": "system",
                     "msg": f"  ({len(previous_errors[-MAX_PREV_ERRORS:])} erreur(s) précédente(s) transmises)"})
 
             code_t0     = time.time()
-            code_result = await self._code(task, plan, attempt, previous_errors, web_context)
+            code_result = await self._code(
+                task, plan, attempt, previous_errors, web_context, workspace_context
+            )
             code_dur    = time.time() - code_t0
             result["steps"].append({"attempt": attempt, "code": code_result})
 
@@ -166,6 +188,9 @@ class Orchestrator:
                 size = len(f.get("content", ""))
                 await self._emit({"type": "log", "level": "ok",
                     "msg": f"  ✎ {f.get('path', '?')} ({size} chars)"})
+                # Émettre l'événement file_written pour mise à jour live de la sidebar
+                await self._emit({"type": "file_written", "path": f.get("path", ""),
+                    "files": self.sandbox.list_files()})
 
             if code_result.get("output"):
                 for line in code_result["output"].split("\n"):
@@ -173,7 +198,7 @@ class Orchestrator:
                         lvl = "err" if (line.startswith("ERR") or "FAIL" in line) else "system"
                         await self._emit({"type": "log", "level": lvl, "msg": f"  {line}"})
 
-            # Vérification rapide : aucun fichier produit = on rejette sans appeler le reviewer
+            # Vérification rapide
             if not code_result.get("files"):
                 reason = "Le codeur n'a produit aucun fichier (réponse vide ou invalide)."
                 await self._emit({"type": "phase", "phase": "reviewer", "state": "done",
@@ -209,6 +234,8 @@ class Orchestrator:
                         "msg": "  → Nouveau plan de correction reçu du reviewer"})
 
         total_dur = time.time() - t0
+        # Émettre la liste finale des fichiers
+        final_files = self.sandbox.list_files()
         if result["success"]:
             await self._emit({"type": "log", "level": "ok",
                 "msg": f"\n✅ Tâche terminée avec succès en {total_dur:.1f}s"})
@@ -216,13 +243,51 @@ class Orchestrator:
             await self._emit({"type": "log", "level": "err",
                 "msg": f"\n❌ Échec après {MAX_RETRIES} tentatives ({total_dur:.1f}s)"})
 
+        await self._emit({"type": "files_updated", "files": final_files})
         return result
+
+    # ─────────────────────────────────────────────────────────────
+    # Contexte workspace
+    # ─────────────────────────────────────────────────────────────
+
+    def _build_workspace_context(self) -> dict:
+        """
+        Lit les fichiers existants dans le workspace pour les injecter
+        comme contexte dans le prochain prompt (mode continuation).
+        """
+        files = self.sandbox.list_files()
+        if not files:
+            return {"files": [], "content": ""}
+
+        # Limiter le nombre de fichiers et la taille totale
+        selected = files[:WORKSPACE_CONTEXT_MAX_FILES]
+        parts = []
+        total = 0
+
+        for f in selected:
+            ok, content = self.sandbox.read_file(f)
+            if not ok:
+                continue
+            # Tronquer les gros fichiers
+            if len(content) > 1500:
+                content = content[:1500] + "\n... [tronqué]"
+            entry = f"=== {f} ===\n{content}\n"
+            if total + len(entry) > WORKSPACE_CONTEXT_MAX_CHARS:
+                parts.append(f"=== {f} === [non chargé — limite atteinte]\n")
+                break
+            parts.append(entry)
+            total += len(entry)
+
+        return {
+            "files":   files,
+            "content": "\n".join(parts) if parts else "",
+        }
 
     # ─────────────────────────────────────────────────────────────
     # Agents
     # ─────────────────────────────────────────────────────────────
 
-    async def _plan(self, task: str) -> dict:
+    async def _plan(self, task: str, workspace_context: dict) -> dict:
         system = (
             "Tu es un agent planificateur expert en architecture logicielle. "
             "Tu réponds UNIQUEMENT en JSON valide, sans texte avant ou après, sans balise markdown."
@@ -232,13 +297,23 @@ class Orchestrator:
             "\n- Si la tâche nécessite des infos récentes, ajoute search_queries (1 à 3 requêtes)."
             if WEB_SEARCH_ENABLED else ""
         )
+
+        existing_files_block = ""
+        if workspace_context["files"]:
+            existing_files_block = (
+                f"\n\nFICHIERS DÉJÀ PRÉSENTS DANS LE WORKSPACE :\n"
+                + "\n".join(f"  - {f}" for f in workspace_context["files"])
+                + "\n→ Adapte ton plan pour compléter/modifier ces fichiers si nécessaire.\n"
+            )
+
         prompt = (
             f"Décompose la tâche suivante en étapes concrètes.\n\n"
             f"Format OBLIGATOIRE (JSON brut uniquement) :\n"
             f'{{"steps": ["étape 1", "étape 2"], "files_to_create": ["chemin/fichier.ext"]{search_field}}}\n\n'
             f"Règles :\n"
             f"- Entre 2 et 8 étapes actionnables et précises\n"
-            f"- Liste TOUS les fichiers à créer avec leur chemin relatif{search_rule}\n\n"
+            f"- Liste TOUS les fichiers à créer ou modifier avec leur chemin relatif{search_rule}"
+            f"{existing_files_block}\n"
             f"Tâche : {task}"
         )
         raw = await self.client.chat(
@@ -247,16 +322,18 @@ class Orchestrator:
         )
         return self._parse_json(raw, {"steps": [task], "files_to_create": []})
 
-    async def _code(self, task: str, plan: dict, attempt: int,
-                    previous_errors: list[str], web_context: str = "") -> dict:
+    async def _code(
+        self, task: str, plan: dict, attempt: int,
+        previous_errors: list[str], web_context: str = "",
+        workspace_context: dict = None,
+    ) -> dict:
         system = (
             "Tu es un agent codeur senior spécialisé en production de code complet. "
             "Tu réponds UNIQUEMENT en JSON valide, sans texte avant ou après, sans balise markdown."
         )
-        steps_txt     = "\n".join(f"- {s}" for s in plan.get("steps", [task]))
-        files_txt     = ", ".join(plan.get("files_to_create", [])) or "à déterminer"
+        steps_txt = "\n".join(f"- {s}" for s in plan.get("steps", [task]))
+        files_txt = ", ".join(plan.get("files_to_create", [])) or "à déterminer"
 
-        # Garder seulement les N dernières erreurs pour éviter la croissance du contexte
         recent_errors = previous_errors[-MAX_PREV_ERRORS:]
         errors_block  = ""
         if recent_errors:
@@ -271,6 +348,15 @@ class Orchestrator:
             if web_context else ""
         )
 
+        # Contexte workspace (fichiers existants pour la continuité du projet)
+        workspace_block = ""
+        if workspace_context and workspace_context.get("content"):
+            workspace_block = (
+                f"\nCONTEXTE PROJET (fichiers existants dans le workspace) :\n"
+                f"{workspace_context['content']}\n"
+                f"→ Reste COHÉRENT avec ces fichiers. Ne les réécris que si demandé.\n"
+            )
+
         prompt = (
             f"Format OBLIGATOIRE (JSON brut uniquement) :\n"
             f'{{"files": [{{"path": "chemin/fichier.ext", "content": "contenu COMPLET"}}], '
@@ -280,7 +366,9 @@ class Orchestrator:
             f"- Gestion des erreurs obligatoire\n"
             f"- Aucun placeholder (pas de # TODO, pas de ...)\n"
             f"- Les commands sont optionnelles, uniquement pour l'installation de dépendances\n"
+            f"- Pour les gros projets : génère UN fichier à la fois si le contenu est long\n"
             f"{web_block}"
+            f"{workspace_block}"
             f"Tâche : {task}\n"
             f"Plan :\n{steps_txt}\n"
             f"Fichiers attendus : {files_txt}\n"
@@ -307,7 +395,7 @@ class Orchestrator:
             await self._emit({"type": "stream_token", "phase": "coder", "token": chunk_buf})
         await self._emit({"type": "stream_end", "phase": "coder"})
 
-        # Vérification : le stream a-t-il retourné une erreur Ollama ?
+        # Vérification erreur Ollama dans le stream
         if '"error"' in raw[:120] and len(raw) < 300:
             err_data = self._parse_json(raw, {})
             if err_data.get("error"):
@@ -339,14 +427,13 @@ class Orchestrator:
             "Tu réponds UNIQUEMENT en JSON valide, sans texte avant ou après, sans balise markdown."
         )
 
-        # Limiter le contexte : max REVIEW_MAX_FILES fichiers × REVIEW_MAX_CHARS_PER chars
         all_files = code_result.get("files", [])
         files     = all_files[:REVIEW_MAX_FILES]
         parts     = []
         for f in files:
             content = f.get("content", "")
             trunc   = content[:REVIEW_MAX_CHARS_PER]
-            suffix  = "…[tronqué]" if len(content) > REVIEW_MAX_CHARS_PER else ""
+            suffix  = "...[tronqué]" if len(content) > REVIEW_MAX_CHARS_PER else ""
             parts.append(f"=== {f['path']} ===\n{trunc}{suffix}")
 
         skipped = len(all_files) - len(files)
@@ -372,7 +459,7 @@ class Orchestrator:
 
         raw = await self.client.chat(
             AGENTS["reviewer"], prompt, system=system,
-            temperature=0.1,                       # plus déterministe pour le reviewer
+            temperature=0.1,
             max_tokens=min(MAX_TOKENS, 1024),
         )
         return self._parse_json(raw, {"approved": True, "reason": "auto-approve (parse error)"})
@@ -382,7 +469,7 @@ class Orchestrator:
     # ─────────────────────────────────────────────────────────────
 
     def _parse_json(self, raw: str, fallback: dict) -> dict:
-        # 1. Nettoyer les balises markdown ```json ... ```
+        # 1. Nettoyer les balises markdown
         cleaned = re.sub(r"^```(?:json)?\s*\n?", "", raw.strip(), flags=re.MULTILINE)
         cleaned = re.sub(r"\n?```\s*$",           "", cleaned.strip(), flags=re.MULTILINE)
         try:
@@ -401,13 +488,13 @@ class Orchestrator:
             elif c == "}":
                 depth -= 1
                 if depth == 0 and start is not None:
-                    candidate = raw[start : i + 1]
+                    candidate = raw[start: i + 1]
                     try:
                         return json.loads(candidate)
                     except Exception:
-                        start = None  # continuer à chercher
+                        start = None
 
-        # 3. JSON tronqué : tenter de refermer jusqu'au dernier }
+        # 3. JSON tronqué
         last_brace = raw.rfind("}")
         if last_brace != -1:
             try:

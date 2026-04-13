@@ -283,7 +283,7 @@ async def get_config():
     cfg.setdefault("sandbox", {})
     cfg["agents"]["max_retries"]   = om.MAX_RETRIES
     cfg["agents"]["temperature"]   = om.TEMPERATURE
-    cfg["agents"]["max_tokens"]    = om.MAX_TOKENS
+    cfg["agents"]["max_tokens"]    = om.MAX_TOKENS  # 16384 par défaut (gros projets)
     cfg["sandbox"]["command_timeout"] = om.CMD_TIMEOUT
     cfg["web_search"] = {"enabled": om.WEB_SEARCH_ENABLED}
     return cfg
@@ -338,6 +338,21 @@ async def cancel_task():
 @app.get("/api/files")
 async def list_files():
     return {"files": orchestrator.sandbox.list_files()}
+
+@app.post("/api/workspace/clear")
+async def clear_workspace():
+    """Supprime tous les fichiers du workspace."""
+    import shutil
+    try:
+        for item in WORKSPACE.iterdir():
+            if item.is_file():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
+        await manager.broadcast({"type": "files_updated", "files": []})
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/api/file")
 async def read_file(path: str):
